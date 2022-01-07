@@ -11,18 +11,18 @@ defmodule PropertyTable.Table do
 
   @spec get(PropertyTable.table_id(), PropertyTable.property(), PropertyTable.value()) ::
           PropertyTable.value()
-  def get(table, name, default) do
-    case :ets.lookup(table, name) do
-      [{^name, value, _timestamp}] -> value
+  def get(table, property, default) do
+    case :ets.lookup(table, property) do
+      [{^property, value, _timestamp}] -> value
       [] -> default
     end
   end
 
   @spec fetch_with_timestamp(PropertyTable.table_id(), PropertyTable.property()) ::
           {:ok, PropertyTable.value(), integer()} | :error
-  def fetch_with_timestamp(table, name) do
-    case :ets.lookup(table, name) do
-      [{^name, value, timestamp}] -> {:ok, value, timestamp}
+  def fetch_with_timestamp(table, property) do
+    case :ets.lookup(table, property) do
+      [{^property, value, timestamp}] -> {:ok, value, timestamp}
       [] -> :error
     end
   end
@@ -68,12 +68,12 @@ defmodule PropertyTable.Table do
         ) ::
           :ok
 
-  def put(table, name, nil, _metadata) do
-    clear(table, name)
+  def put(table, property, nil, _metadata) do
+    clear(table, property)
   end
 
-  def put(table, name, value, metadata) do
-    GenServer.call(table, {:put, name, value, System.monotonic_time(), metadata})
+  def put(table, property, value, metadata) do
+    GenServer.call(table, {:put, property, value, System.monotonic_time(), metadata})
   end
 
   @doc """
@@ -82,16 +82,16 @@ defmodule PropertyTable.Table do
   If the property changed, this will send events to all listeners.
   """
   @spec clear(PropertyTable.table_id(), PropertyTable.property()) :: :ok
-  def clear(table, name) when is_list(name) do
-    GenServer.call(table, {:clear, name})
+  def clear(table, property) when is_list(property) do
+    GenServer.call(table, {:clear, property})
   end
 
   @doc """
   Clear out all of the properties under a prefix
   """
   @spec clear_prefix(PropertyTable.table_id(), PropertyTable.property()) :: :ok
-  def clear_prefix(table, name) when is_list(name) do
-    GenServer.call(table, {:clear_prefix, name})
+  def clear_prefix(table, property) when is_list(property) do
+    GenServer.call(table, {:clear_prefix, property})
   end
 
   @impl GenServer
@@ -100,20 +100,23 @@ defmodule PropertyTable.Table do
 
     # Insert the initial properties
     timestamp = System.monotonic_time()
-    Enum.each(properties, fn {name, value} -> :ets.insert(table, {name, value, timestamp}) end)
+
+    Enum.each(properties, fn {property, value} ->
+      :ets.insert(table, {property, value, timestamp})
+    end)
 
     state = %{table: table, registry: registry_name}
     {:ok, state}
   end
 
   @impl GenServer
-  def handle_call({:put, name, value, timestamp, metadata}, _from, state) do
-    case :ets.lookup(state.table, name) do
-      [{^name, ^value, _last_change}] ->
+  def handle_call({:put, property, value, timestamp, metadata}, _from, state) do
+    case :ets.lookup(state.table, property) do
+      [{^property, ^value, _last_change}] ->
         # No change, so no notifications
         :ok
 
-      [{^name, old_value, last_change}] ->
+      [{^property, old_value, last_change}] ->
         timestamp_metadata = %{
           old_timestamp: last_change,
           new_timestamp: timestamp
@@ -121,23 +124,23 @@ defmodule PropertyTable.Table do
 
         updated_metadata = Map.merge(timestamp_metadata, metadata)
 
-        :ets.insert(state.table, {name, value, timestamp})
-        dispatch(state, name, old_value, value, updated_metadata)
+        :ets.insert(state.table, {property, value, timestamp})
+        dispatch(state, property, old_value, value, updated_metadata)
 
       [] ->
-        :ets.insert(state.table, {name, value, timestamp})
-        dispatch(state, name, nil, value, metadata)
+        :ets.insert(state.table, {property, value, timestamp})
+        dispatch(state, property, nil, value, metadata)
     end
 
     {:reply, :ok, state}
   end
 
   @impl GenServer
-  def handle_call({:clear, name}, _from, state) do
-    case :ets.lookup(state.table, name) do
-      [{^name, old_value, _timestamp}] ->
-        :ets.delete(state.table, name)
-        dispatch(state, name, old_value, nil, %{})
+  def handle_call({:clear, property}, _from, state) do
+    case :ets.lookup(state.table, property) do
+      [{^property, old_value, _timestamp}] ->
+        :ets.delete(state.table, property)
+        dispatch(state, property, old_value, nil, %{})
 
       [] ->
         :ok
@@ -154,50 +157,50 @@ defmodule PropertyTable.Table do
     # Delete everything first and then send notifications so
     # if handlers call "get", they won't see something that
     # will be deleted shortly.
-    Enum.each(to_delete, fn {name, _value} ->
-      :ets.delete(state.table, name)
+    Enum.each(to_delete, fn {property, _value} ->
+      :ets.delete(state.table, property)
     end)
 
-    Enum.each(to_delete, fn {name, value} ->
-      dispatch(state, name, value, nil, metadata)
+    Enum.each(to_delete, fn {property, value} ->
+      dispatch(state, property, value, nil, metadata)
     end)
 
     {:reply, :ok, state}
   end
 
-  defp dispatch(state, name, old_value, new_value, metadata) do
-    message = {state.table, name, old_value, new_value, metadata}
+  defp dispatch(state, property, old_value, new_value, metadata) do
+    message = {state.table, property, old_value, new_value, metadata}
 
     Registry.match(state.registry, :property_registry, :_)
     |> Enum.each(fn {pid, match} ->
-      is_property_prefix_match?(match, name) && send(pid, message)
+      is_property_prefix_match?(match, property) && send(pid, message)
     end)
   end
 
   # Check if the first parameter is a prefix of the second parameter with
   # wildcards
-  defp is_property_prefix_match?([], _name), do: true
+  defp is_property_prefix_match?([], _property), do: true
 
-  defp is_property_prefix_match?([value | match_rest], [value | name_rest]) do
-    is_property_prefix_match?(match_rest, name_rest)
+  defp is_property_prefix_match?([value | match_rest], [value | property_rest]) do
+    is_property_prefix_match?(match_rest, property_rest)
   end
 
-  defp is_property_prefix_match?([:_ | match_rest], [_any | name_rest]) do
-    is_property_prefix_match?(match_rest, name_rest)
+  defp is_property_prefix_match?([:_ | match_rest], [_any | property_rest]) do
+    is_property_prefix_match?(match_rest, property_rest)
   end
 
-  defp is_property_prefix_match?(_match, _name), do: false
+  defp is_property_prefix_match?(_match, _property), do: false
 
   # Check if the first parameter matches the second parameter with wildcards
   defp is_property_match?([], []), do: true
 
-  defp is_property_match?([value | match_rest], [value | name_rest]) do
-    is_property_match?(match_rest, name_rest)
+  defp is_property_match?([value | match_rest], [value | property_rest]) do
+    is_property_match?(match_rest, property_rest)
   end
 
-  defp is_property_match?([:_ | match_rest], [_any | name_rest]) do
-    is_property_match?(match_rest, name_rest)
+  defp is_property_match?([:_ | match_rest], [_any | property_rest]) do
+    is_property_match?(match_rest, property_rest)
   end
 
-  defp is_property_match?(_match, _name), do: false
+  defp is_property_match?(_match, _property), do: false
 end

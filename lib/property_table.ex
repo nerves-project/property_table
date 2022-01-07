@@ -5,22 +5,47 @@ defmodule PropertyTable do
   Users can subscribe to keys or groups of keys to be notified of changes.
 
   Keys are hierarchically layed out with each key being represented as a list
-  for the path to the key. For example, to get the current state of the network
-  interface `eth0`, you would get the value of the key, `["net", "ethernet",
-  "eth0"]`.
+  of strings for the path to the key and referred to as a "property".
+  For example, if you wanted to store properties for network interfaces, you
+  might have a table called `NetworkTable` with a hierarchy like this:
+
+  ```sh
+  NetworkTable
+  ├── available_interfaces
+  │   └── [eth0, eth1]
+  └── interface
+  |   ├── eth0
+  |   │   ├── config
+  |   |   |   └── %{ipv4: %{method: :dhcp}}
+  |   │   └── connection
+  |   |       └── :internet
+  |   └── eth1
+  |       ├── config
+  |       |   └── %{ipv4: %{method: :static}}
+  |       └── connection
+  |           └── :disconnected
+  └── connection
+      └── :internet
+  ```
+
+  And inserting the values to the table would look like:
+
+      PropertyTable.put(NetworkTable, ["available_interfaces"], ["eth0", "eth1"])
+      PropertyTable.put(NetworkTable, ["connection"], :internet)
+      PropertyTable.put(NetworkTable, ["interface", "eth0", "config"], %{ipv4: %{method: :dhcp}})
 
   Values can be any Elixir data structure except for `nil`. `nil` is used to
-  identify non-existent keys. Therefore, setting a property to `nil` deletes
+  identify non-existent properties. Therefore, setting a property to `nil` deletes
   the property.
 
-  Users can get and listen for changes in multiple keys by specifying prefix
-  paths. For example, if you want to get every network property, run:
+  Users can get and listen for changes in multiple properties by specifying prefix
+  paths. For example, if you wanted to get every interface property, run:
 
-      PropertyTable.get_by_prefix(table, ["net"])
+      PropertyTable.get_by_prefix(NetworkTable, ["interface"])
 
-  Likewise, you can subscribe to changes in the network status by running:
+  Likewise, you can subscribe to changes in the interfaces status by running:
 
-      PropertyTable.subscribe(table, ["net"])
+      PropertyTable.subscribe(table, ["interface"])
 
   Properties can include metadata. `PropertyTable` only specifies that metadata
   is a map.
@@ -72,11 +97,11 @@ defmodule PropertyTable do
   Subscribe to receive events
   """
   @spec subscribe(table_id(), property_with_wildcards()) :: :ok
-  def subscribe(table, name) when is_list(name) do
-    assert_property_with_wildcards(name)
+  def subscribe(table, property) when is_list(property) do
+    assert_property_with_wildcards(property)
 
     registry = PropertyTable.Supervisor.registry_name(table)
-    {:ok, _} = Registry.register(registry, :property_registry, name)
+    {:ok, _} = Registry.register(registry, :property_registry, property)
 
     :ok
   end
@@ -85,7 +110,7 @@ defmodule PropertyTable do
   Stop subscribing to a property
   """
   @spec unsubscribe(table_id(), property_with_wildcards()) :: :ok
-  def unsubscribe(table, name) when is_list(name) do
+  def unsubscribe(table, property) when is_list(property) do
     registry = PropertyTable.Supervisor.registry_name(table)
     Registry.unregister(registry, :property_registry)
   end
@@ -94,9 +119,9 @@ defmodule PropertyTable do
   Get the current value of a property
   """
   @spec get(table_id(), property(), value()) :: value()
-  def get(table, name, default \\ nil) when is_list(name) do
-    assert_property(name)
-    Table.get(table, name, default)
+  def get(table, property, default \\ nil) when is_list(property) do
+    assert_property(property)
+    Table.get(table, property, default)
   end
 
   @doc """
@@ -105,9 +130,9 @@ defmodule PropertyTable do
   Timestamps come from `System.monotonic_time()`
   """
   @spec fetch_with_timestamp(table_id(), property()) :: {:ok, value(), integer()} | :error
-  def fetch_with_timestamp(table, name) when is_list(name) do
-    assert_property(name)
-    Table.fetch_with_timestamp(table, name)
+  def fetch_with_timestamp(table, property) when is_list(property) do
+    assert_property(property)
+    Table.fetch_with_timestamp(table, property)
   end
 
   @doc """
@@ -121,7 +146,7 @@ defmodule PropertyTable do
   end
 
   @doc """
-  Get a list of all properties matching the specified prefix
+  Get a list of all properties matching the specified property pattern
   """
   @spec match(table_id(), property_with_wildcards()) :: [{property(), value()}]
   def match(table, pattern) when is_list(pattern) do
@@ -134,30 +159,28 @@ defmodule PropertyTable do
   Update a property and notify listeners
   """
   @spec put(table_id(), property(), value(), metadata()) :: :ok
-  def put(table, name, value, metadata \\ %{}) when is_list(name) do
-    Table.put(table, name, value, metadata)
+  def put(table, property, value, metadata \\ %{}) when is_list(property) do
+    Table.put(table, property, value, metadata)
   end
 
-  @doc """
-  Clear out a property
-  """
-  defdelegate clear(table, name), to: Table
+  # @doc delegate_to:
+  defdelegate clear(table, property), to: Table
 
   @doc """
   Clear out all properties under a prefix
   """
-  defdelegate clear_prefix(table, name), to: Table
+  defdelegate clear_prefix(table, property), to: Table
 
-  defp assert_property(name) do
-    Enum.each(name, fn
+  defp assert_property(property) do
+    Enum.each(property, fn
       v when is_binary(v) -> :ok
       :_ -> raise ArgumentError, "Wildcards not allowed in this property"
       _ -> raise ArgumentError, "Property should be a list of strings"
     end)
   end
 
-  defp assert_property_with_wildcards(name) do
-    Enum.each(name, fn
+  defp assert_property_with_wildcards(property) do
+    Enum.each(property, fn
       v when is_binary(v) -> :ok
       :_ -> :ok
       _ -> raise ArgumentError, "Property should be a list of strings"
