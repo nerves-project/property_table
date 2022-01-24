@@ -4,14 +4,14 @@ defmodule PropertyTableTest do
   doctest PropertyTable
 
   test "start with initial properties", %{test: table} do
-    name1 = ["test", "a", "b"]
-    name2 = ["test", "c"]
+    property1 = ["test", "a", "b"]
+    property2 = ["test", "c"]
 
     {:ok, _pid} =
-      start_supervised({PropertyTable, properties: [{name1, 1}, {name2, 2}], name: table})
+      start_supervised({PropertyTable, properties: [{property1, 1}, {property2, 2}], name: table})
 
-    assert PropertyTable.get(table, name1) == 1
-    assert PropertyTable.get(table, name2) == 2
+    assert PropertyTable.get(table, property1) == 1
+    assert PropertyTable.get(table, property2) == 2
   end
 
   test "wildcard subscription", %{test: table} do
@@ -47,75 +47,75 @@ defmodule PropertyTableTest do
 
   test "sending events", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
-    name = ["test"]
-    PropertyTable.subscribe(table, name)
+    property = ["test"]
+    PropertyTable.subscribe(table, property)
 
-    PropertyTable.put(table, name, 99)
-    assert_receive {table, ^name, nil, 99, _}
+    PropertyTable.put(table, property, 99)
+    assert_receive {table, ^property, nil, 99, _}
 
-    PropertyTable.put(table, name, 100)
-    assert_receive {table, ^name, 99, 100, _}
+    PropertyTable.put(table, property, 100)
+    assert_receive {table, ^property, 99, 100, _}
 
-    PropertyTable.clear(table, name)
-    assert_receive {table, ^name, 100, nil, _}
+    PropertyTable.clear(table, property)
+    assert_receive {table, ^property, 100, nil, _}
 
-    PropertyTable.unsubscribe(table, name)
+    PropertyTable.unsubscribe(table, property)
   end
 
   test "setting properties to nil clears them", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
-    name = ["test"]
+    property = ["test"]
 
-    PropertyTable.put(table, name, 124)
-    assert PropertyTable.get_by_prefix(table, []) == [{name, 124}]
+    PropertyTable.put(table, property, 124)
+    assert PropertyTable.get_by_prefix(table, []) == [{property, 124}]
 
-    PropertyTable.put(table, name, nil)
+    PropertyTable.put(table, property, nil)
     assert PropertyTable.get_by_prefix(table, []) == []
   end
 
   test "generic subscribers receive events", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
-    name = ["test", "a", "b"]
+    property = ["test", "a", "b"]
 
     PropertyTable.subscribe(table, [])
-    PropertyTable.put(table, name, 101)
-    assert_receive {table, ^name, nil, 101, _}
+    PropertyTable.put(table, property, 101)
+    assert_receive {table, ^property, nil, 101, _}
     PropertyTable.unsubscribe(table, [])
   end
 
   test "duplicate events are dropped", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
-    name = ["test", "a", "b"]
+    property = ["test", "a", "b"]
 
-    PropertyTable.subscribe(table, name)
-    PropertyTable.put(table, name, 102)
-    PropertyTable.put(table, name, 102)
-    assert_receive {^table, ^name, nil, 102, _}
-    refute_receive {^table, ^name, _, 102, _}
+    PropertyTable.subscribe(table, property)
+    PropertyTable.put(table, property, 102)
+    PropertyTable.put(table, property, 102)
+    assert_receive {^table, ^property, nil, 102, _}
+    refute_receive {^table, ^property, _, 102, _}
 
-    PropertyTable.unsubscribe(table, name)
+    PropertyTable.unsubscribe(table, property)
   end
 
   test "getting the latest", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
-    name = ["test", "a", "b"]
-    assert PropertyTable.get(table, name) == nil
+    property = ["test", "a", "b"]
+    assert PropertyTable.get(table, property) == nil
 
-    PropertyTable.put(table, name, 105)
-    assert PropertyTable.get(table, name) == 105
+    PropertyTable.put(table, property, 105)
+    assert PropertyTable.get(table, property) == 105
 
-    PropertyTable.put(table, name, 106)
-    assert PropertyTable.get(table, name) == 106
+    PropertyTable.put(table, property, 106)
+    assert PropertyTable.get(table, property) == 106
   end
 
   test "fetching data with timestamps", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
-    name = ["test", "a", "b"]
-    assert :error == PropertyTable.fetch_with_timestamp(table, name)
+    property = ["test", "a", "b"]
+    assert :error == PropertyTable.fetch_with_timestamp(table, property)
 
-    PropertyTable.put(table, name, 105)
+    PropertyTable.put(table, property, 105)
     now = System.monotonic_time()
-    assert {:ok, value, timestamp} = PropertyTable.fetch_with_timestamp(table, name)
+    assert {:ok, value, timestamp} = PropertyTable.fetch_with_timestamp(table, property)
     assert value == 105
 
     # Check that PropertyTable takes the timestamp synchronously.
@@ -128,20 +128,20 @@ defmodule PropertyTableTest do
 
   test "getting a subtree", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
-    name = ["test", "a", "b"]
-    name2 = ["test", "a", "c"]
+    property = ["test", "a", "b"]
+    property2 = ["test", "a", "c"]
 
     assert PropertyTable.get_by_prefix(table, []) == []
 
-    PropertyTable.put(table, name, 105)
-    assert PropertyTable.get_by_prefix(table, []) == [{name, 105}]
+    PropertyTable.put(table, property, 105)
+    assert PropertyTable.get_by_prefix(table, []) == [{property, 105}]
 
-    PropertyTable.put(table, name2, 106)
-    assert PropertyTable.get_by_prefix(table, []) == [{name, 105}, {name2, 106}]
-    assert PropertyTable.get_by_prefix(table, ["test"]) == [{name, 105}, {name2, 106}]
-    assert PropertyTable.get_by_prefix(table, ["test", "a"]) == [{name, 105}, {name2, 106}]
-    assert PropertyTable.get_by_prefix(table, name) == [{name, 105}]
-    assert PropertyTable.get_by_prefix(table, name2) == [{name2, 106}]
+    PropertyTable.put(table, property2, 106)
+    assert PropertyTable.get_by_prefix(table, []) == [{property, 105}, {property2, 106}]
+    assert PropertyTable.get_by_prefix(table, ["test"]) == [{property, 105}, {property2, 106}]
+    assert PropertyTable.get_by_prefix(table, ["test", "a"]) == [{property, 105}, {property2, 106}]
+    assert PropertyTable.get_by_prefix(table, property) == [{property, 105}]
+    assert PropertyTable.get_by_prefix(table, property2) == [{property2, 106}]
   end
 
   test "clearing a subtree", %{test: table} do
@@ -208,19 +208,19 @@ defmodule PropertyTableTest do
   end
 
   test "timestamp of old and new values are provided in metadata", %{test: table} do
-    name = ["a", "b", "c"]
+    property = ["a", "b", "c"]
 
-    {:ok, _pid} = start_supervised({PropertyTable, name: table, properties: [{name, 1}]})
+    {:ok, _pid} = start_supervised({PropertyTable, name: table, properties: [{property, 1}]})
 
-    PropertyTable.subscribe(table, name)
+    PropertyTable.subscribe(table, property)
 
-    {:ok, 1, old_timestamp} = PropertyTable.fetch_with_timestamp(table, name)
+    {:ok, 1, old_timestamp} = PropertyTable.fetch_with_timestamp(table, property)
 
     PropertyTable.put(table, ["a", "b", "c"], 88)
 
     assert_receive {^table, ["a", "b", "c"], 1, 88, metadata}
 
-    {:ok, 88, new_timestamp} = PropertyTable.fetch_with_timestamp(table, name)
+    {:ok, 88, new_timestamp} = PropertyTable.fetch_with_timestamp(table, property)
 
     assert old_timestamp == metadata.old_timestamp
     assert new_timestamp == metadata.new_timestamp
