@@ -1,6 +1,8 @@
 defmodule PropertyTableTest do
   use ExUnit.Case, async: true
 
+  alias PropertyTable.NoTableError
+
   doctest PropertyTable
 
   test "start with initial properties", %{test: table} do
@@ -275,32 +277,28 @@ defmodule PropertyTableTest do
   end
 
   test "errors when table does not exist", %{test: table} do
-    assert_raise ArgumentError, ~r/unknown registry/, fn ->
-      PropertyTable.subscribe(table, ["a"])
-    end
+    assert_raise NoTableError, fn -> PropertyTable.subscribe(table, ["a"]) end
+    assert_raise NoTableError, fn -> PropertyTable.unsubscribe(table, ["a"]) end
+    assert_raise NoTableError, fn -> PropertyTable.get(table, ["a"]) end
+    assert_raise NoTableError, fn -> PropertyTable.fetch_with_timestamp(table, ["a"]) end
+    assert_raise NoTableError, fn -> PropertyTable.get_by_prefix(table, ["a"]) end
+    assert_raise NoTableError, fn -> PropertyTable.match(table, ["a"]) end
+    assert_raise NoTableError, fn -> PropertyTable.put(table, ["a"], 1) end
+    assert_raise NoTableError, fn -> PropertyTable.clear(table, ["a"]) end
+    assert_raise NoTableError, fn -> PropertyTable.clear_prefix(table, ["a"]) end
+  end
 
-    assert_raise ArgumentError, ~r/unknown registry/, fn ->
-      PropertyTable.unsubscribe(table, ["a"])
+  test "errors when table is invalid" do
+    for bad <- [nil, "invalid_name", {:not, :good}, 1] do
+      assert_raise ArgumentError, fn -> PropertyTable.subscribe(bad, ["a"]) end
+      assert_raise ArgumentError, fn -> PropertyTable.unsubscribe(bad, ["a"]) end
+      assert_raise ArgumentError, fn -> PropertyTable.get(bad, ["a"]) end
+      assert_raise ArgumentError, fn -> PropertyTable.fetch_with_timestamp(bad, ["a"]) end
+      assert_raise ArgumentError, fn -> PropertyTable.get_by_prefix(bad, ["a"]) end
+      assert_raise ArgumentError, fn -> PropertyTable.match(bad, ["a"]) end
+      assert_raise ArgumentError, fn -> PropertyTable.put(bad, ["a"], 1) end
+      assert_raise ArgumentError, fn -> PropertyTable.clear(bad, ["a"]) end
+      assert_raise ArgumentError, fn -> PropertyTable.clear_prefix(bad, ["a"]) end
     end
-
-    assert_raise ArgumentError, ~r/does not refer to an existing ETS table/, fn ->
-      PropertyTable.get(table, ["a"])
-    end
-
-    assert_raise ArgumentError, ~r/does not refer to an existing ETS table/, fn ->
-      PropertyTable.fetch_with_timestamp(table, ["a"])
-    end
-
-    assert_raise ArgumentError, ~r/does not refer to an existing ETS table/, fn ->
-      PropertyTable.get_by_prefix(table, ["a"])
-    end
-
-    assert_raise ArgumentError, ~r/does not refer to an existing ETS table/, fn ->
-      PropertyTable.match(table, ["a"])
-    end
-
-    assert {:noproc, {GenServer, :call, _}} = catch_exit(PropertyTable.put(table, ["a"], 1))
-    assert {:noproc, {GenServer, :call, _}} = catch_exit(PropertyTable.clear(table, ["a"]))
-    assert {:noproc, {GenServer, :call, _}} = catch_exit(PropertyTable.clear_prefix(table, ["a"]))
   end
 end

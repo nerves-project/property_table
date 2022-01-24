@@ -3,7 +3,7 @@ defmodule PropertyTable do
              |> String.split("## Usage")
              |> Enum.fetch!(1)
 
-  alias PropertyTable.Table
+  alias PropertyTable.{NoTableError, Table}
 
   @typedoc """
   A table_id identifies a group of properties
@@ -45,6 +45,27 @@ defmodule PropertyTable do
     }
   end
 
+  @doc false
+  defmacro catch_table(table, do: block) do
+    quote do
+      validate_table!(unquote(table))
+
+      try do
+        unquote(block)
+      rescue
+        e ->
+          if Exception.message(e) =~ ~r/does not refer to an existing ETS table|unknown registry/ do
+            raise NoTableError, unquote(table)
+          else
+            raise e
+          end
+      catch
+        :exit, {:noproc, {GenServer, _, _}} ->
+          raise NoTableError, unquote(table)
+      end
+    end
+  end
+
   @doc """
   Subscribe to receive events
   """
@@ -52,10 +73,12 @@ defmodule PropertyTable do
   def subscribe(table, property) do
     formatted = format_property!(property, wildcards: true)
 
-    registry = PropertyTable.Supervisor.registry_name(table)
-    {:ok, _} = Registry.register(registry, :property_registry, formatted)
+    catch_table(table) do
+      registry = PropertyTable.Supervisor.registry_name(table)
+      {:ok, _} = Registry.register(registry, :property_registry, formatted)
 
-    :ok
+      :ok
+    end
   end
 
   @doc """
@@ -64,8 +87,11 @@ defmodule PropertyTable do
   @spec unsubscribe(table_id(), property_with_wildcards()) :: :ok
   def unsubscribe(table, _property) do
     # TODO: Fix unsusbscribing to just a property
-    registry = PropertyTable.Supervisor.registry_name(table)
-    Registry.unregister(registry, :property_registry)
+    catch_table(table) do
+      registry = PropertyTable.Supervisor.registry_name(table)
+      Registry.unregister(registry, :property_registry)
+      :ok
+    end
   end
 
   @doc """
@@ -74,7 +100,7 @@ defmodule PropertyTable do
   @spec get(table_id(), property(), value()) :: value()
   def get(table, property, default \\ nil) do
     formatted = format_property!(property)
-    Table.get(table, formatted, default)
+    catch_table(table, do: Table.get(table, formatted, default))
   end
 
   @doc """
@@ -85,7 +111,7 @@ defmodule PropertyTable do
   @spec fetch_with_timestamp(table_id(), property()) :: {:ok, value(), integer()} | :error
   def fetch_with_timestamp(table, property) do
     formatted = format_property!(property)
-    Table.fetch_with_timestamp(table, formatted)
+    catch_table(table, do: Table.fetch_with_timestamp(table, formatted))
   end
 
   @doc """
@@ -94,7 +120,7 @@ defmodule PropertyTable do
   @spec get_by_prefix(table_id(), property()) :: [{property(), value()}]
   def get_by_prefix(table, property_prefix) do
     formatted = format_property!(property_prefix)
-    Table.get_by_prefix(table, formatted)
+    catch_table(table, do: Table.get_by_prefix(table, formatted))
   end
 
   @doc """
@@ -103,7 +129,7 @@ defmodule PropertyTable do
   @spec match(table_id(), property_with_wildcards()) :: [{property(), value()}]
   def match(table, property_pattern) do
     formatted = format_property!(property_pattern, wildcards: true)
-    Table.match(table, formatted)
+    catch_table(table, do: Table.match(table, formatted))
   end
 
   @doc """
@@ -112,7 +138,7 @@ defmodule PropertyTable do
   @spec put(table_id(), property(), value(), metadata()) :: :ok
   def put(table, property, value, metadata \\ %{}) do
     formatted = format_property!(property)
-    Table.put(table, formatted, value, metadata)
+    catch_table(table, do: Table.put(table, formatted, value, metadata))
   end
 
   @doc """
@@ -123,7 +149,7 @@ defmodule PropertyTable do
   @spec clear(table_id(), property()) :: :ok
   def clear(table, property) do
     formatted = format_property!(property)
-    Table.clear(table, formatted)
+    catch_table(table, do: Table.clear(table, formatted))
   end
 
   @doc """
@@ -132,7 +158,7 @@ defmodule PropertyTable do
   @spec clear_prefix(table_id(), property()) :: :ok
   def clear_prefix(table, property_prefix) do
     formatted = format_property!(property_prefix)
-    Table.clear_prefix(table, formatted)
+    catch_table(table, do: Table.clear_prefix(table, formatted))
   end
 
   defp format_property!(property, opts \\ [])
@@ -175,4 +201,10 @@ defmodule PropertyTable do
   defp do_format_property([bad | _rest], _acc, _) do
     raise ArgumentError, "#{inspect(bad)} is not a string and cannot be used in a property key"
   end
+
+  defp validate_table!(table) when is_atom(table) and not is_nil(table) do
+    :ok
+  end
+
+  defp validate_table!(table), do: raise ArgumentError, "#{inspect(table)} is not a valid table id"
 end
