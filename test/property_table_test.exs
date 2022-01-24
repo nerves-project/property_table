@@ -36,13 +36,42 @@ defmodule PropertyTableTest do
 
   test "getting invalid properties raises", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
+
+    wildcard_msg =
+      "property wildcards can only be used with PropertyTable.subscribe/2 and PropertyTable.match/2"
+
     # Wildcards aren't allowed
-    assert_raise ArgumentError, fn -> PropertyTable.get(table, [:_, "a"]) end
-    assert_raise ArgumentError, fn -> PropertyTable.get(table, [:_]) end
+    assert_raise ArgumentError, wildcard_msg, fn -> PropertyTable.get(table, [:_, "a"]) end
+    assert_raise ArgumentError, wildcard_msg, fn -> PropertyTable.get(table, [:_]) end
+
+    assert_raise ArgumentError, wildcard_msg, fn ->
+      PropertyTable.fetch_with_timestamp(table, [:_])
+    end
+
+    assert_raise ArgumentError, wildcard_msg, fn -> PropertyTable.clear(table, [:_]) end
+    assert_raise ArgumentError, wildcard_msg, fn -> PropertyTable.clear_prefix(table, [:_]) end
 
     # Non-string lists aren't allowed
-    assert_raise ArgumentError, fn -> PropertyTable.get(table, ['nope']) end
-    assert_raise ArgumentError, fn -> PropertyTable.get(table, ["a", 5]) end
+    assert_raise ArgumentError, ~r/is not a string/, fn -> PropertyTable.get(table, ['nope']) end
+    assert_raise ArgumentError, ~r/is not a string/, fn -> PropertyTable.get(table, ["a", 5]) end
+    assert_raise ArgumentError, ~r/is not a string/, fn -> PropertyTable.get(table, 'nope') end
+
+    # Only strings and lists are allowed
+    assert_raise ArgumentError, ~r/is not a valid property/, fn ->
+      PropertyTable.get(table, {"a", 5})
+    end
+
+    assert_raise ArgumentError, ~r/is not a valid property/, fn ->
+      PropertyTable.get(table, :howdy)
+    end
+
+    assert_raise ArgumentError, ~r/is not a valid property/, fn ->
+      PropertyTable.get(table, %{})
+    end
+
+    assert_raise ArgumentError, ~r/is not a valid property/, fn ->
+      PropertyTable.get(table, 1234)
+    end
   end
 
   test "sending events", %{test: table} do
@@ -139,7 +168,12 @@ defmodule PropertyTableTest do
     PropertyTable.put(table, property2, 106)
     assert PropertyTable.get_by_prefix(table, []) == [{property, 105}, {property2, 106}]
     assert PropertyTable.get_by_prefix(table, ["test"]) == [{property, 105}, {property2, 106}]
-    assert PropertyTable.get_by_prefix(table, ["test", "a"]) == [{property, 105}, {property2, 106}]
+
+    assert PropertyTable.get_by_prefix(table, ["test", "a"]) == [
+             {property, 105},
+             {property2, 106}
+           ]
+
     assert PropertyTable.get_by_prefix(table, property) == [{property, 105}]
     assert PropertyTable.get_by_prefix(table, property2) == [{property2, 106}]
   end
@@ -224,5 +258,49 @@ defmodule PropertyTableTest do
 
     assert old_timestamp == metadata.old_timestamp
     assert new_timestamp == metadata.new_timestamp
+  end
+
+  test "supports string property paths", %{test: table} do
+    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    assert :ok = PropertyTable.put(table, "a/b/c", 1)
+    assert 1 == PropertyTable.get(table, "a/b/c")
+    assert 1 == PropertyTable.get(table, "/a/b/c")
+  end
+
+  test "supports string property paths with wildcards", %{test: table} do
+    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    assert :ok = PropertyTable.put(table, "a/b/c", 1)
+    assert [{["a", "b", "c"], 1}] == PropertyTable.match(table, "a/*/c")
+    assert [{["a", "b", "c"], 1}] == PropertyTable.match(table, "/a/*/c")
+  end
+
+  test "errors when table does not exist", %{test: table} do
+    assert_raise ArgumentError, ~r/unknown registry/, fn ->
+      PropertyTable.subscribe(table, ["a"])
+    end
+
+    assert_raise ArgumentError, ~r/unknown registry/, fn ->
+      PropertyTable.unsubscribe(table, ["a"])
+    end
+
+    assert_raise ArgumentError, ~r/does not refer to an existing ETS table/, fn ->
+      PropertyTable.get(table, ["a"])
+    end
+
+    assert_raise ArgumentError, ~r/does not refer to an existing ETS table/, fn ->
+      PropertyTable.fetch_with_timestamp(table, ["a"])
+    end
+
+    assert_raise ArgumentError, ~r/does not refer to an existing ETS table/, fn ->
+      PropertyTable.get_by_prefix(table, ["a"])
+    end
+
+    assert_raise ArgumentError, ~r/does not refer to an existing ETS table/, fn ->
+      PropertyTable.match(table, ["a"])
+    end
+
+    assert {:noproc, {GenServer, :call, _}} = catch_exit(PropertyTable.put(table, ["a"], 1))
+    assert {:noproc, {GenServer, :call, _}} = catch_exit(PropertyTable.clear(table, ["a"]))
+    assert {:noproc, {GenServer, :call, _}} = catch_exit(PropertyTable.clear_prefix(table, ["a"]))
   end
 end
