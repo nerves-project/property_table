@@ -49,11 +49,11 @@ defmodule PropertyTable do
   Subscribe to receive events
   """
   @spec subscribe(table_id(), property_with_wildcards()) :: :ok
-  def subscribe(table, property) when is_list(property) do
-    assert_property_with_wildcards(property)
+  def subscribe(table, property) do
+    formatted = format_property!(property, wildcards: true)
 
     registry = PropertyTable.Supervisor.registry_name(table)
-    {:ok, _} = Registry.register(registry, :property_registry, property)
+    {:ok, _} = Registry.register(registry, :property_registry, formatted)
 
     :ok
   end
@@ -62,7 +62,8 @@ defmodule PropertyTable do
   Stop subscribing to a property
   """
   @spec unsubscribe(table_id(), property_with_wildcards()) :: :ok
-  def unsubscribe(table, property) when is_list(property) do
+  def unsubscribe(table, _property) do
+    # TODO: Fix unsusbscribing to just a property
     registry = PropertyTable.Supervisor.registry_name(table)
     Registry.unregister(registry, :property_registry)
   end
@@ -71,9 +72,9 @@ defmodule PropertyTable do
   Get the current value of a property
   """
   @spec get(table_id(), property(), value()) :: value()
-  def get(table, property, default \\ nil) when is_list(property) do
-    assert_property(property)
-    Table.get(table, property, default)
+  def get(table, property, default \\ nil) do
+    formatted = format_property!(property)
+    Table.get(table, formatted, default)
   end
 
   @doc """
@@ -82,60 +83,96 @@ defmodule PropertyTable do
   Timestamps come from `System.monotonic_time()`
   """
   @spec fetch_with_timestamp(table_id(), property()) :: {:ok, value(), integer()} | :error
-  def fetch_with_timestamp(table, property) when is_list(property) do
-    assert_property(property)
-    Table.fetch_with_timestamp(table, property)
+  def fetch_with_timestamp(table, property) do
+    formatted = format_property!(property)
+    Table.fetch_with_timestamp(table, formatted)
   end
 
   @doc """
   Get a list of all properties matching the specified prefix
   """
   @spec get_by_prefix(table_id(), property()) :: [{property(), value()}]
-  def get_by_prefix(table, prefix) when is_list(prefix) do
-    assert_property(prefix)
-
-    Table.get_by_prefix(table, prefix)
+  def get_by_prefix(table, property_prefix) do
+    formatted = format_property!(property_prefix)
+    Table.get_by_prefix(table, formatted)
   end
 
   @doc """
   Get a list of all properties matching the specified property pattern
   """
   @spec match(table_id(), property_with_wildcards()) :: [{property(), value()}]
-  def match(table, pattern) when is_list(pattern) do
-    assert_property_with_wildcards(pattern)
-
-    Table.match(table, pattern)
+  def match(table, property_pattern) do
+    formatted = format_property!(property_pattern, wildcards: true)
+    Table.match(table, formatted)
   end
 
   @doc """
   Update a property and notify listeners
   """
   @spec put(table_id(), property(), value(), metadata()) :: :ok
-  def put(table, property, value, metadata \\ %{}) when is_list(property) do
-    Table.put(table, property, value, metadata)
+  def put(table, property, value, metadata \\ %{}) do
+    formatted = format_property!(property)
+    Table.put(table, formatted, value, metadata)
   end
 
-  # @doc delegate_to:
-  defdelegate clear(table, property), to: Table
+  @doc """
+  Clear a property
+
+  If the property changed, this will send events to all listeners.
+  """
+  @spec clear(table_id(), property()) :: :ok
+  def clear(table, property) do
+    formatted = format_property!(property)
+    Table.clear(table, formatted)
+  end
 
   @doc """
   Clear out all properties under a prefix
   """
-  defdelegate clear_prefix(table, property), to: Table
-
-  defp assert_property(property) do
-    Enum.each(property, fn
-      v when is_binary(v) -> :ok
-      :_ -> raise ArgumentError, "Wildcards not allowed in this property"
-      _ -> raise ArgumentError, "Property should be a list of strings"
-    end)
+  @spec clear_prefix(table_id(), property()) :: :ok
+  def clear_prefix(table, property_prefix) do
+    formatted = format_property!(property_prefix)
+    Table.clear_prefix(table, formatted)
   end
 
-  defp assert_property_with_wildcards(property) do
-    Enum.each(property, fn
-      v when is_binary(v) -> :ok
-      :_ -> :ok
-      _ -> raise ArgumentError, "Property should be a list of strings"
-    end)
+  defp format_property!(property, opts \\ [])
+
+  defp format_property!(property, opts) when is_binary(property) do
+    format_property!(String.split(property, "/", trim: true), opts)
+  end
+
+  defp format_property!(property, opts) when is_list(property) do
+    allow_wildcards? = opts[:wildcards] == true
+    do_format_property(property, [], allow_wildcards?)
+  end
+
+  defp format_property!(property, _opts) do
+    msg = """
+    #{inspect(property)} is not a valid property.
+
+    A property is a hierarchical path represented as a list of strings (["a", "b", "c"])
+    or a single string path delimited by `/` ("a/b/c")
+    """
+
+    raise ArgumentError, msg
+  end
+
+  defp do_format_property([], acc, _), do: Enum.reverse(acc)
+
+  defp do_format_property([next | rest], acc, allow_wildcards?) when next in ["*", :_] do
+    if allow_wildcards? do
+      do_format_property(rest, [:_ | acc], allow_wildcards?)
+    else
+      raise ArgumentError,
+            "property wildcards can only be used with PropertyTable.subscribe/2 and PropertyTable.match/2"
+    end
+  end
+
+  defp do_format_property([next | rest], acc, allow_wildcards?) when is_binary(next) do
+    do_format_property(rest, [next | acc], allow_wildcards?)
+  end
+
+  defp do_format_property([bad | _rest], _acc, _) do
+    raise ArgumentError, "#{inspect(bad)} is not a string and cannot be used in a property key"
   end
 end
