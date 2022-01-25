@@ -88,6 +88,14 @@ defmodule PropertyTable do
   end
 
   @doc """
+  Get all properties for a table
+
+  Same as get_by_prefix(table_id(), [])
+  """
+  @spec get_all(table_id()) :: [property_value()]
+  def get_all(table), do: get_by_prefix(table, [])
+
+  @doc """
   Get a list of all properties matching the specified prefix
   """
   @spec get_by_prefix(table_id(), property()) :: [{property(), value()}]
