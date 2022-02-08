@@ -27,16 +27,16 @@ defmodule PropertyTable.Table do
     end
   end
 
-  @spec get_by_prefix(PropertyTable.table_id(), PropertyTable.property()) :: [
-          {PropertyTable.property(), PropertyTable.value()}
-        ]
-  def get_by_prefix(table, prefix) do
-    matchspec = {append(prefix), :"$2", :_}
+  # @spec get_by_prefix(PropertyTable.table_id(), PropertyTable.property()) :: [
+  #         {PropertyTable.property(), PropertyTable.value()}
+  #       ]
+  # def get_by_prefix(table, prefix) do
+  #   matchspec = {append(prefix), :"$2", :_}
 
-    :ets.match(table, matchspec)
-    |> Enum.map(fn [k, v] -> {prefix ++ k, v} end)
-    |> Enum.sort()
-  end
+  #   :ets.match(table, matchspec)
+  #   |> Enum.map(fn [k, v] -> {prefix ++ k, v} end)
+  #   |> Enum.sort()
+  # end
 
   @spec match(PropertyTable.table_id(), PropertyTable.property_with_wildcards()) :: [
           {PropertyTable.property(), PropertyTable.value()}
@@ -82,7 +82,7 @@ defmodule PropertyTable.Table do
   If the property changed, this will send events to all listeners.
   """
   @spec clear(PropertyTable.table_id(), PropertyTable.property()) :: :ok
-  def clear(table, property) when is_list(property) do
+  def clear(table, property) when is_map(property) do
     GenServer.call(table, {:clear, property})
   end
 
@@ -90,7 +90,7 @@ defmodule PropertyTable.Table do
   Clear out all of the properties under a prefix
   """
   @spec clear_prefix(PropertyTable.table_id(), PropertyTable.property()) :: :ok
-  def clear_prefix(table, property) when is_list(property) do
+  def clear_prefix(table, property) when is_map(property) do
     GenServer.call(table, {:clear_prefix, property})
   end
 
@@ -151,7 +151,7 @@ defmodule PropertyTable.Table do
 
   @impl GenServer
   def handle_call({:clear_prefix, prefix}, _from, state) do
-    to_delete = get_by_prefix(state.table, prefix)
+    to_delete = match(state.table, prefix)
     metadata = %{}
 
     # Delete everything first and then send notifications so
@@ -173,34 +173,29 @@ defmodule PropertyTable.Table do
 
     Registry.match(state.registry, :property_registry, :_)
     |> Enum.each(fn {pid, match} ->
-      is_property_prefix_match?(match, property) && send(pid, message)
+      is_property_match?(match, property) && send(pid, message)
+      # is_property_prefix_match?(match, property) && send(pid, message)
     end)
   end
 
   # Check if the first parameter is a prefix of the second parameter with
   # wildcards
-  defp is_property_prefix_match?([], _property), do: true
+  # defp is_property_prefix_match?([], _property), do: true
 
-  defp is_property_prefix_match?([value | match_rest], [value | property_rest]) do
-    is_property_prefix_match?(match_rest, property_rest)
-  end
+  # defp is_property_prefix_match?([value | match_rest], [value | property_rest]) do
+  #   is_property_prefix_match?(match_rest, property_rest)
+  # end
 
-  defp is_property_prefix_match?([:_ | match_rest], [_any | property_rest]) do
-    is_property_prefix_match?(match_rest, property_rest)
-  end
+  # defp is_property_prefix_match?([:_ | match_rest], [_any | property_rest]) do
+  #   is_property_prefix_match?(match_rest, property_rest)
+  # end
 
-  defp is_property_prefix_match?(_match, _property), do: false
+  # defp is_property_prefix_match?(_match, _property), do: false
 
   # Check if the first parameter matches the second parameter with wildcards
-  defp is_property_match?([], []), do: true
+  defp is_property_match?(p, p), do: true
 
-  defp is_property_match?([value | match_rest], [value | property_rest]) do
-    is_property_match?(match_rest, property_rest)
+  defp is_property_match?(pattern, property) do
+    MapSet.subset?(MapSet.new(pattern), MapSet.new(property))
   end
-
-  defp is_property_match?([:_ | match_rest], [_any | property_rest]) do
-    is_property_match?(match_rest, property_rest)
-  end
-
-  defp is_property_match?(_match, _property), do: false
 end

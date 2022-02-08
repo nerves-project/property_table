@@ -13,8 +13,10 @@ defmodule PropertyTable do
   @typedoc """
   Properties
   """
-  @type property :: [String.t()]
-  @type property_with_wildcards :: [String.t() | :_]
+  @type property :: map()
+  @type property_with_wildcards :: map()
+  # @type property :: [String.t()]
+  # @type property_with_wildcards :: [String.t() | :_]
   @type value :: any()
   @type property_value :: {property(), value()}
   @type metadata :: map()
@@ -49,8 +51,8 @@ defmodule PropertyTable do
   Subscribe to receive events
   """
   @spec subscribe(table_id(), property_with_wildcards()) :: :ok
-  def subscribe(table, property) when is_list(property) do
-    assert_property_with_wildcards(property)
+  def subscribe(table, property) when is_map(property) do
+    # assert_property_with_wildcards(property)
 
     registry = PropertyTable.Supervisor.registry_name(table)
     {:ok, _} = Registry.register(registry, :property_registry, property)
@@ -62,7 +64,7 @@ defmodule PropertyTable do
   Stop subscribing to a property
   """
   @spec unsubscribe(table_id(), property_with_wildcards()) :: :ok
-  def unsubscribe(table, property) when is_list(property) do
+  def unsubscribe(table, property) when is_map(property) do
     registry = PropertyTable.Supervisor.registry_name(table)
     Registry.unregister(registry, :property_registry)
   end
@@ -71,8 +73,8 @@ defmodule PropertyTable do
   Get the current value of a property
   """
   @spec get(table_id(), property(), value()) :: value()
-  def get(table, property, default \\ nil) when is_list(property) do
-    assert_property(property)
+  def get(table, property, default \\ nil) when is_map(property) do
+    # assert_property(property)
     Table.get(table, property, default)
   end
 
@@ -82,8 +84,8 @@ defmodule PropertyTable do
   Timestamps come from `System.monotonic_time()`
   """
   @spec fetch_with_timestamp(table_id(), property()) :: {:ok, value(), integer()} | :error
-  def fetch_with_timestamp(table, property) when is_list(property) do
-    assert_property(property)
+  def fetch_with_timestamp(table, property) when is_map(property) do
+    # assert_property(property)
     Table.fetch_with_timestamp(table, property)
   end
 
@@ -93,24 +95,24 @@ defmodule PropertyTable do
   Same as get_by_prefix(table_id(), [])
   """
   @spec get_all(table_id()) :: [property_value()]
-  def get_all(table), do: get_by_prefix(table, [])
+  def get_all(table), do: match(table, %{})
 
-  @doc """
-  Get a list of all properties matching the specified prefix
-  """
-  @spec get_by_prefix(table_id(), property()) :: [{property(), value()}]
-  def get_by_prefix(table, prefix) when is_list(prefix) do
-    assert_property(prefix)
+  # @doc """
+  # Get a list of all properties matching the specified prefix
+  # """
+  # @spec get_by_prefix(table_id(), property()) :: [{property(), value()}]
+  # def get_by_prefix(table, prefix) when is_map(prefix) do
+  #   # assert_property(prefix)
 
-    Table.get_by_prefix(table, prefix)
-  end
+  #   Table.get_by_prefix(table, prefix)
+  # end
 
   @doc """
   Get a list of all properties matching the specified property pattern
   """
   @spec match(table_id(), property_with_wildcards()) :: [{property(), value()}]
-  def match(table, pattern) when is_list(pattern) do
-    assert_property_with_wildcards(pattern)
+  def match(table, pattern) when is_map(pattern) do
+    # assert_property_with_wildcards(pattern)
 
     Table.match(table, pattern)
   end
@@ -119,7 +121,7 @@ defmodule PropertyTable do
   Update a property and notify listeners
   """
   @spec put(table_id(), property(), value(), metadata()) :: :ok
-  def put(table, property, value, metadata \\ %{}) when is_list(property) do
+  def put(table, property, value, metadata \\ %{}) when is_map(property) do
     Table.put(table, property, value, metadata)
   end
 
@@ -131,19 +133,19 @@ defmodule PropertyTable do
   """
   defdelegate clear_prefix(table, property), to: Table
 
-  defp assert_property(property) do
-    Enum.each(property, fn
-      v when is_binary(v) -> :ok
-      :_ -> raise ArgumentError, "Wildcards not allowed in this property"
-      _ -> raise ArgumentError, "Property should be a list of strings"
-    end)
-  end
+  # defp assert_property(property) do
+  #   Enum.each(property, fn
+  #     v when is_binary(v) -> :ok
+  #     :_ -> raise ArgumentError, "Wildcards not allowed in this property"
+  #     _ -> raise ArgumentError, "Property should be a list of strings"
+  #   end)
+  # end
 
-  defp assert_property_with_wildcards(property) do
-    Enum.each(property, fn
-      v when is_binary(v) -> :ok
-      :_ -> :ok
-      _ -> raise ArgumentError, "Property should be a list of strings"
-    end)
-  end
+  # defp assert_property_with_wildcards(property) do
+  #   Enum.each(property, fn
+  #     v when is_binary(v) -> :ok
+  #     :_ -> :ok
+  #     _ -> raise ArgumentError, "Property should be a list of strings"
+  #   end)
+  # end
 end
