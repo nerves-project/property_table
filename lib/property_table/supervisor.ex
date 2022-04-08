@@ -13,8 +13,10 @@ defmodule PropertyTable.Supervisor do
     properties = Keyword.get(options, :properties, [])
     registry_name = registry_name(name)
 
+    PropertyTable.Table.create_ets_table(name, properties)
+
     children = [
-      {PropertyTable.Table, {name, registry_name, properties}},
+      {PropertyTable.Table, {name, registry_name}},
       {Registry, [keys: :duplicate, name: registry_name]}
     ]
 
