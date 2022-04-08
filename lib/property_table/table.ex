@@ -43,10 +43,10 @@ defmodule PropertyTable.Table do
     end
   end
 
-  @spec get_by_prefix(PropertyTable.table_id(), PropertyTable.property()) :: [
+  @spec get_all(PropertyTable.table_id(), PropertyTable.property()) :: [
           {PropertyTable.property(), PropertyTable.value()}
         ]
-  def get_by_prefix(table, prefix) do
+  def get_all(table, prefix) do
     matchspec = {append(prefix), :"$2", :_}
 
     :ets.match(table, matchspec)
@@ -157,7 +157,7 @@ defmodule PropertyTable.Table do
 
   @impl GenServer
   def handle_call({:clear_prefix, prefix}, _from, state) do
-    to_delete = get_by_prefix(state.table, prefix)
+    to_delete = get_all(state.table, prefix)
     metadata = %{}
 
     # Delete everything first and then send notifications so
