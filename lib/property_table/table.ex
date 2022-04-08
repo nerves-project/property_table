@@ -2,10 +2,26 @@ defmodule PropertyTable.Table do
   @moduledoc false
   use GenServer
 
-  @spec start_link(
-          {PropertyTable.table_id(), Registry.registry(), [PropertyTable.property_value()]}
-        ) :: GenServer.on_start()
-  def start_link({table, _registry_name, _properties} = args) do
+  @doc """
+  Create the ETS table that holds all of the properties
+
+  This is done outside of the Table GenServer so that the Table GenServer can
+  crash and recover without losing state.
+  """
+  @spec create_ets_table(PropertyTable.table_id(), [PropertyTable.property_value()]) :: :ok
+  def create_ets_table(table, initial_properties) do
+    ^table = :ets.new(table, [:named_table, :public, read_concurrency: true])
+
+    # Insert the initial properties
+    timestamp = System.monotonic_time()
+
+    Enum.each(initial_properties, fn {property, value} ->
+      :ets.insert(table, {property, value, timestamp})
+    end)
+  end
+
+  @spec start_link({PropertyTable.table_id(), Registry.registry()}) :: GenServer.on_start()
+  def start_link({table, _registry_name} = args) do
     GenServer.start_link(__MODULE__, args, name: table)
   end
 
@@ -95,18 +111,8 @@ defmodule PropertyTable.Table do
   end
 
   @impl GenServer
-  def init({table, registry_name, properties}) do
-    ^table = :ets.new(table, [:named_table, read_concurrency: true])
-
-    # Insert the initial properties
-    timestamp = System.monotonic_time()
-
-    Enum.each(properties, fn {property, value} ->
-      :ets.insert(table, {property, value, timestamp})
-    end)
-
-    state = %{table: table, registry: registry_name}
-    {:ok, state}
+  def init({table, registry_name}) do
+    {:ok, %{table: table, registry: registry_name}}
   end
 
   @impl GenServer

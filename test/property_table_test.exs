@@ -14,6 +14,35 @@ defmodule PropertyTableTest do
     assert PropertyTable.get(table, property2) == 2
   end
 
+  test "crashing table doesn't lose properties", %{test: table} do
+    property1 = ["test", "a"]
+    property2 = ["test", "b"]
+    property3 = ["test", "c"]
+
+    {:ok, _pid} =
+      start_supervised({PropertyTable, properties: [{property1, 1}, {property2, 2}], name: table})
+
+    # Change a seed property and add a new property
+    PropertyTable.put(table, property2, 22)
+    PropertyTable.put(table, property3, 33)
+
+    # Check that we set the table up for the test correctly
+    assert PropertyTable.get(table, property1) == 1
+    assert PropertyTable.get(table, property2) == 22
+    assert PropertyTable.get(table, property3) == 33
+
+    # Crash the table. Due to async process crash and recovery if there isn't a
+    # sleep here, the asserts can run before the crash and pass without testing
+    # recovery.
+    Process.exit(Process.whereis(table), :oops)
+    Process.sleep(10)
+
+    # Test that the properties didn't get lost or overwritten
+    assert PropertyTable.get(table, property1) == 1
+    assert PropertyTable.get(table, property2) == 22
+    assert PropertyTable.get(table, property3) == 33
+  end
+
   test "wildcard subscription", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
     PropertyTable.subscribe(table, ["a", :_, "c"])
@@ -139,7 +168,12 @@ defmodule PropertyTableTest do
     PropertyTable.put(table, property2, 106)
     assert PropertyTable.get_by_prefix(table, []) == [{property, 105}, {property2, 106}]
     assert PropertyTable.get_by_prefix(table, ["test"]) == [{property, 105}, {property2, 106}]
-    assert PropertyTable.get_by_prefix(table, ["test", "a"]) == [{property, 105}, {property2, 106}]
+
+    assert PropertyTable.get_by_prefix(table, ["test", "a"]) == [
+             {property, 105},
+             {property2, 106}
+           ]
+
     assert PropertyTable.get_by_prefix(table, property) == [{property, 105}]
     assert PropertyTable.get_by_prefix(table, property2) == [{property2, 106}]
   end
