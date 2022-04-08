@@ -48,7 +48,7 @@ Users can get and listen for changes in multiple properties by specifying prefix
 paths. For example, if you wanted to get every interface property, run:
 
 ```elixir
-PropertyTable.get_by_prefix(NetworkTable, ["interface"])
+PropertyTable.get_all(NetworkTable, ["interface"])
 ```
 
 Likewise, you can subscribe to changes in the interfaces status by running:

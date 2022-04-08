@@ -88,21 +88,15 @@ defmodule PropertyTable do
   end
 
   @doc """
-  Get all properties for a table
+  Get all properties
 
-  Same as get_by_prefix(table_id(), [])
+  It's possible to pass a prefix to only return properties under a specific path.
   """
-  @spec get_all(table_id()) :: [property_value()]
-  def get_all(table), do: get_by_prefix(table, [])
-
-  @doc """
-  Get a list of all properties matching the specified prefix
-  """
-  @spec get_by_prefix(table_id(), property()) :: [{property(), value()}]
-  def get_by_prefix(table, prefix) when is_list(prefix) do
+  @spec get_all(table_id(), property()) :: [{property(), value()}]
+  def get_all(table, prefix \\ []) when is_list(prefix) do
     assert_property(prefix)
 
-    Table.get_by_prefix(table, prefix)
+    Table.get_all(table, prefix)
   end
 
   @doc """

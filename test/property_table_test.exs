@@ -96,10 +96,10 @@ defmodule PropertyTableTest do
     property = ["test"]
 
     PropertyTable.put(table, property, 124)
-    assert PropertyTable.get_by_prefix(table, []) == [{property, 124}]
+    assert PropertyTable.get_all(table, []) == [{property, 124}]
 
     PropertyTable.put(table, property, nil)
-    assert PropertyTable.get_by_prefix(table, []) == []
+    assert PropertyTable.get_all(table, []) == []
   end
 
   test "generic subscribers receive events", %{test: table} do
@@ -160,22 +160,22 @@ defmodule PropertyTableTest do
     property = ["test", "a", "b"]
     property2 = ["test", "a", "c"]
 
-    assert PropertyTable.get_by_prefix(table, []) == []
+    assert PropertyTable.get_all(table, []) == []
 
     PropertyTable.put(table, property, 105)
-    assert PropertyTable.get_by_prefix(table, []) == [{property, 105}]
+    assert PropertyTable.get_all(table, []) == [{property, 105}]
 
     PropertyTable.put(table, property2, 106)
-    assert PropertyTable.get_by_prefix(table, []) == [{property, 105}, {property2, 106}]
-    assert PropertyTable.get_by_prefix(table, ["test"]) == [{property, 105}, {property2, 106}]
+    assert PropertyTable.get_all(table, []) == [{property, 105}, {property2, 106}]
+    assert PropertyTable.get_all(table, ["test"]) == [{property, 105}, {property2, 106}]
 
-    assert PropertyTable.get_by_prefix(table, ["test", "a"]) == [
+    assert PropertyTable.get_all(table, ["test", "a"]) == [
              {property, 105},
              {property2, 106}
            ]
 
-    assert PropertyTable.get_by_prefix(table, property) == [{property, 105}]
-    assert PropertyTable.get_by_prefix(table, property2) == [{property2, 106}]
+    assert PropertyTable.get_all(table, property) == [{property, 105}]
+    assert PropertyTable.get_all(table, property2) == [{property2, 106}]
   end
 
   test "clearing a subtree", %{test: table} do
@@ -186,7 +186,7 @@ defmodule PropertyTableTest do
     PropertyTable.put(table, ["f", "g"], 4)
 
     PropertyTable.clear_prefix(table, ["a"])
-    assert PropertyTable.get_by_prefix(table, []) == [{["f", "g"], 4}]
+    assert PropertyTable.get_all(table, []) == [{["f", "g"], 4}]
   end
 
   test "match using wildcards", %{test: table} do
