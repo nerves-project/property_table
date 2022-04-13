@@ -105,9 +105,9 @@ defmodule PropertyTable.Table do
   @doc """
   Clear out all of the properties under a prefix
   """
-  @spec clear_prefix(PropertyTable.table_id(), PropertyTable.property()) :: :ok
-  def clear_prefix(table, property) when is_list(property) do
-    GenServer.call(table, {:clear_prefix, property})
+  @spec clear_all(PropertyTable.table_id(), PropertyTable.property()) :: :ok
+  def clear_all(table, property) when is_list(property) do
+    GenServer.call(table, {:clear_all, property})
   end
 
   @impl GenServer
@@ -156,7 +156,7 @@ defmodule PropertyTable.Table do
   end
 
   @impl GenServer
-  def handle_call({:clear_prefix, prefix}, _from, state) do
+  def handle_call({:clear_all, prefix}, _from, state) do
     to_delete = get_all(state.table, prefix)
     metadata = %{}
 

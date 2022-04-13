@@ -123,7 +123,7 @@ defmodule PropertyTable do
   @doc """
   Clear out all properties under a prefix
   """
-  defdelegate clear_prefix(table, property), to: Table
+  defdelegate clear_all(table, property), to: Table
 
   defp assert_property(property) do
     Enum.each(property, fn
