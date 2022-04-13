@@ -185,7 +185,7 @@ defmodule PropertyTableTest do
     PropertyTable.put(table, ["a", "b", "e"], 3)
     PropertyTable.put(table, ["f", "g"], 4)
 
-    PropertyTable.clear_prefix(table, ["a"])
+    PropertyTable.clear_all(table, ["a"])
     assert PropertyTable.get_all(table, []) == [{["f", "g"], 4}]
   end
 
