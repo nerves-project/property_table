@@ -117,12 +117,16 @@ defmodule PropertyTable do
     Table.put(table, property, value, metadata)
   end
 
-  # @doc delegate_to:
+  @doc """
+  Delete the specified property
+  """
+  @spec clear(table_id(), property()) :: :ok
   defdelegate clear(table, property), to: Table
 
   @doc """
   Clear out all properties under a prefix
   """
+  @spec clear_all(table_id(), property()) :: :ok
   defdelegate clear_all(table, property), to: Table
 
   defp assert_property(property) do
