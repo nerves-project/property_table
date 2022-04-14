@@ -22,15 +22,7 @@ defmodule PropertyTable do
   @type options :: [name: table_id(), properties: [property_value()]]
 
   @spec start_link(options()) :: {:ok, pid} | {:error, term}
-  def start_link(options) do
-    name = Keyword.get(options, :name)
-
-    unless !is_nil(name) and is_atom(name) do
-      raise ArgumentError, "expected :name to be given and to be an atom, got: #{inspect(name)}"
-    end
-
-    PropertyTable.Supervisor.start_link(options)
-  end
+  defdelegate start_link(options), to: PropertyTable.Supervisor
 
   @doc """
   Returns a specification to start a property_table under a supervisor.

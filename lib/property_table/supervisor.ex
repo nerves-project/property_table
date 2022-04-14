@@ -4,6 +4,12 @@ defmodule PropertyTable.Supervisor do
 
   @spec start_link(PropertyTable.options()) :: Supervisor.on_start()
   def start_link(options) do
+    name = Keyword.get(options, :name)
+
+    unless !is_nil(name) and is_atom(name) do
+      raise ArgumentError, "expected :name to be given and to be an atom, got: #{inspect(name)}"
+    end
+
     Supervisor.start_link(__MODULE__, options)
   end
 
