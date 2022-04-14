@@ -53,7 +53,7 @@ defmodule PropertyTable do
     assert_property_with_wildcards(property)
 
     registry = PropertyTable.Supervisor.registry_name(table)
-    {:ok, _} = Registry.register(registry, :property_registry, property)
+    {:ok, _} = Registry.register(registry, :subscriptions, property)
 
     :ok
   end
@@ -64,7 +64,7 @@ defmodule PropertyTable do
   @spec unsubscribe(table_id(), property_with_wildcards()) :: :ok
   def unsubscribe(table, property) when is_list(property) do
     registry = PropertyTable.Supervisor.registry_name(table)
-    Registry.unregister(registry, :property_registry)
+    Registry.unregister(registry, :subscriptions)
   end
 
   @doc """

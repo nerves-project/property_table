@@ -177,7 +177,7 @@ defmodule PropertyTable.Table do
   defp dispatch(state, property, old_value, new_value, metadata) do
     message = {state.table, property, old_value, new_value, metadata}
 
-    Registry.match(state.registry, :property_registry, :_)
+    Registry.match(state.registry, :subscriptions, :_)
     |> Enum.each(fn {pid, match} ->
       is_property_prefix_match?(match, property) && send(pid, message)
     end)
