@@ -10,7 +10,7 @@ defmodule PropertyTable.Table do
   """
   @spec create_ets_table(PropertyTable.table_id(), [PropertyTable.property_value()]) :: :ok
   def create_ets_table(table, initial_properties) do
-    ^table = :ets.new(table, [:named_table, :public, read_concurrency: true])
+    ^table = :ets.new(table, [:named_table, :public])
 
     # Insert the initial properties
     timestamp = System.monotonic_time()
