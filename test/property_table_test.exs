@@ -1,6 +1,8 @@
 defmodule PropertyTableTest do
   use ExUnit.Case, async: true
 
+  alias PropertyTable.Event
+
   doctest PropertyTable
 
   test "start with initial properties", %{test: table} do
@@ -48,19 +50,25 @@ defmodule PropertyTableTest do
     PropertyTable.subscribe(table, ["a", :_, "c"])
 
     # Exact match
-    PropertyTable.put(table, ["a", "b", "c"], 88)
-    assert_receive {^table, ["a", "b", "c"], nil, 88, _}
+    PropertyTable.put(table, ["a", "b", "c"], 7)
+    assert_receive %Event{table: ^table, property: ["a", "b", "c"], value: 7, previous_value: nil}
 
     # Prefix match
-    PropertyTable.put(table, ["a", "b", "c", "d"], 88)
-    assert_receive {^table, ["a", "b", "c", "d"], nil, 88, _}
+    PropertyTable.put(table, ["a", "b", "c", "d"], 8)
+
+    assert_receive %Event{
+      table: ^table,
+      property: ["a", "b", "c", "d"],
+      value: 8,
+      previous_value: nil
+    }
 
     # No match
-    PropertyTable.put(table, ["x", "b", "c"], 88)
-    refute_receive {^table, ["x", "b", "c"], _, _, _}
+    PropertyTable.put(table, ["x", "b", "c"], 9)
+    refute_receive _
 
-    PropertyTable.put(table, ["a", "b", "d"], 88)
-    refute_receive {^table, ["a", "b", "d"], _, _, _}
+    PropertyTable.put(table, ["a", "b", "d"], 10)
+    refute_receive _
   end
 
   test "getting invalid properties raises", %{test: table} do
@@ -80,15 +88,28 @@ defmodule PropertyTableTest do
     PropertyTable.subscribe(table, property)
 
     PropertyTable.put(table, property, 99)
-    assert_receive {table, ^property, nil, 99, _}
+    assert_receive %Event{table: ^table, property: ^property, value: 99, previous_value: nil}
 
     PropertyTable.put(table, property, 100)
-    assert_receive {table, ^property, 99, 100, _}
+    assert_receive %Event{table: ^table, property: ^property, value: 100, previous_value: 99}
 
     PropertyTable.clear(table, property)
-    assert_receive {table, ^property, 100, nil, _}
+    assert_receive %Event{table: ^table, property: ^property, value: nil, previous_value: 100}
+
+    PropertyTable.put(table, property, 101, %{hello: 1})
+
+    assert_receive %Event{
+      table: ^table,
+      property: ^property,
+      value: 101,
+      previous_value: nil,
+      meta: %{hello: 1}
+    }
 
     PropertyTable.unsubscribe(table, property)
+
+    PropertyTable.put(table, property, 102)
+    refute_receive _
   end
 
   test "setting properties to nil clears them", %{test: table} do
@@ -108,8 +129,11 @@ defmodule PropertyTableTest do
 
     PropertyTable.subscribe(table, [])
     PropertyTable.put(table, property, 101)
-    assert_receive {table, ^property, nil, 101, _}
+    assert_receive %Event{table: ^table, property: ^property, value: 101}
     PropertyTable.unsubscribe(table, [])
+
+    PropertyTable.put(table, property, 101)
+    refute_receive _
   end
 
   test "duplicate events are dropped", %{test: table} do
@@ -119,8 +143,8 @@ defmodule PropertyTableTest do
     PropertyTable.subscribe(table, property)
     PropertyTable.put(table, property, 102)
     PropertyTable.put(table, property, 102)
-    assert_receive {^table, ^property, nil, 102, _}
-    refute_receive {^table, ^property, _, 102, _}
+    assert_receive %Event{table: ^table, property: ^property, value: 102}
+    refute_receive _
 
     PropertyTable.unsubscribe(table, property)
   end
@@ -241,22 +265,29 @@ defmodule PropertyTableTest do
            ]
   end
 
-  test "timestamp of old and new values are provided in metadata", %{test: table} do
+  test "timestamp of old and new values are provided", %{test: table} do
     property = ["a", "b", "c"]
 
     {:ok, _pid} = start_supervised({PropertyTable, name: table, properties: [{property, 1}]})
 
     PropertyTable.subscribe(table, property)
 
-    {:ok, 1, old_timestamp} = PropertyTable.fetch_with_timestamp(table, property)
+    {:ok, 1, previous_timestamp} = PropertyTable.fetch_with_timestamp(table, property)
 
     PropertyTable.put(table, ["a", "b", "c"], 88)
 
-    assert_receive {^table, ["a", "b", "c"], 1, 88, metadata}
+    assert_receive %Event{
+      table: ^table,
+      property: ["a", "b", "c"],
+      value: 88,
+      previous_value: 1,
+      timestamp: event_timestamp,
+      previous_timestamp: event_previous_timestamp
+    }
 
-    {:ok, 88, new_timestamp} = PropertyTable.fetch_with_timestamp(table, property)
+    {:ok, 88, timestamp} = PropertyTable.fetch_with_timestamp(table, property)
 
-    assert old_timestamp == metadata.old_timestamp
-    assert new_timestamp == metadata.new_timestamp
+    assert previous_timestamp == event_previous_timestamp
+    assert timestamp == event_timestamp
   end
 end

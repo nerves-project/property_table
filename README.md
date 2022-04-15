@@ -44,21 +44,38 @@ Values can be any Elixir data structure except for `nil`. `nil` is used to
 identify non-existent properties. Therefore, setting a property to `nil` deletes
 the property.
 
-Users can get and listen for changes in multiple properties by specifying prefix
-paths. For example, if you wanted to get every interface property, run:
+Users can get and listen for changes in multiple properties by specifying the beginning of a
+path. For example, if you wanted to get every property that begins with `"interface"`, run:
 
 ```elixir
 PropertyTable.get_all(NetworkTable, ["interface"])
 ```
 
-Likewise, you can subscribe to changes in the interfaces status by running:
+Likewise, you can subscribe to changes to receive a message after each change
+happens. For example, to receive a message when any property starting with
+`"interface"` changes, run:
 
 ```elixir
 PropertyTable.subscribe(table, ["interface"])
 ```
 
-Properties can include metadata. `PropertyTable` only specifies that metadata
-is a map.
+Then when a property changes value, the Erlang process that called
+`PropertyTable.subscribe/2` will receive a `%PropertyTable.Event{}` message:
+
+```elixir
+%PropertyTable.Event{
+  table: NetworkTable,
+  property: ["interface", "eth0", "config"],
+  value: %{ipv4: %{method: :dhcp}}
+  timestamp: 200,
+  previous_value: %{},
+  previous_timestamp: 100,
+  meta: %{},
+}
+```
+
+As shown, events not only contain the property and new value, but also
+information about the previous value.
 
 ## License
 

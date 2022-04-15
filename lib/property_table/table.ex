@@ -2,6 +2,8 @@ defmodule PropertyTable.Table do
   @moduledoc false
   use GenServer
 
+  alias PropertyTable.Event
+
   @doc """
   Create the ETS table that holds all of the properties
 
@@ -54,6 +56,17 @@ defmodule PropertyTable.Table do
     |> Enum.sort()
   end
 
+  @spec get_all_with_timestamp(PropertyTable.table_id(), PropertyTable.property()) :: [
+          {PropertyTable.property(), PropertyTable.value(), integer()}
+        ]
+  def get_all_with_timestamp(table, prefix) do
+    matchspec = {append(prefix), :"$2", :"$3"}
+
+    :ets.match(table, matchspec)
+    |> Enum.map(fn [k, v, t] -> {prefix ++ k, v, t} end)
+    |> Enum.sort()
+  end
+
   @dialyzer {:nowarn_function, append: 1}
   defp append([]), do: :"$1"
   defp append([h]), do: [h | :"$1"]
@@ -84,8 +97,8 @@ defmodule PropertyTable.Table do
         ) ::
           :ok
 
-  def put(table, property, nil, _metadata) do
-    clear(table, property)
+  def put(table, property, nil, metadata) do
+    clear(table, property, metadata)
   end
 
   def put(table, property, value, metadata) do
@@ -97,17 +110,18 @@ defmodule PropertyTable.Table do
 
   If the property changed, this will send events to all listeners.
   """
-  @spec clear(PropertyTable.table_id(), PropertyTable.property()) :: :ok
-  def clear(table, property) when is_list(property) do
-    GenServer.call(table, {:clear, property})
+  @spec clear(PropertyTable.table_id(), PropertyTable.property(), PropertyTable.metadata()) :: :ok
+  def clear(table, property, metadata) when is_list(property) do
+    GenServer.call(table, {:clear, property, System.monotonic_time(), metadata})
   end
 
   @doc """
   Clear out all of the properties under a prefix
   """
-  @spec clear_all(PropertyTable.table_id(), PropertyTable.property()) :: :ok
-  def clear_all(table, property) when is_list(property) do
-    GenServer.call(table, {:clear_all, property})
+  @spec clear_all(PropertyTable.table_id(), PropertyTable.property(), PropertyTable.metadata()) ::
+          :ok
+  def clear_all(table, property, metadata) when is_list(property) do
+    GenServer.call(table, {:clear_all, property, System.monotonic_time(), metadata})
   end
 
   @impl GenServer
@@ -122,31 +136,56 @@ defmodule PropertyTable.Table do
         # No change, so no notifications
         :ok
 
-      [{^property, old_value, last_change}] ->
-        timestamp_metadata = %{
-          old_timestamp: last_change,
-          new_timestamp: timestamp
+      [{^property, previous_value, last_change}] ->
+        event = %Event{
+          table: state.table,
+          property: property,
+          value: value,
+          previous_value: previous_value,
+          timestamp: timestamp,
+          previous_timestamp: last_change,
+          meta: metadata
         }
 
-        updated_metadata = Map.merge(timestamp_metadata, metadata)
-
         :ets.insert(state.table, {property, value, timestamp})
-        dispatch(state, property, old_value, value, updated_metadata)
+        dispatch(state, property, event)
 
       [] ->
         :ets.insert(state.table, {property, value, timestamp})
-        dispatch(state, property, nil, value, metadata)
+
+        event = %Event{
+          table: state.table,
+          property: property,
+          value: value,
+          previous_value: nil,
+          timestamp: timestamp,
+          previous_timestamp: nil,
+          meta: metadata
+        }
+
+        dispatch(state, property, event)
     end
 
     {:reply, :ok, state}
   end
 
   @impl GenServer
-  def handle_call({:clear, property}, _from, state) do
+  def handle_call({:clear, property, timestamp, metadata}, _from, state) do
     case :ets.lookup(state.table, property) do
-      [{^property, old_value, _timestamp}] ->
+      [{^property, previous_value, last_change}] ->
         :ets.delete(state.table, property)
-        dispatch(state, property, old_value, nil, %{})
+
+        event = %Event{
+          table: state.table,
+          property: property,
+          value: nil,
+          previous_value: previous_value,
+          timestamp: timestamp,
+          previous_timestamp: last_change,
+          meta: metadata
+        }
+
+        dispatch(state, property, event)
 
       [] ->
         :ok
@@ -156,30 +195,37 @@ defmodule PropertyTable.Table do
   end
 
   @impl GenServer
-  def handle_call({:clear_all, prefix}, _from, state) do
-    to_delete = get_all(state.table, prefix)
-    metadata = %{}
+  def handle_call({:clear_all, prefix, timestamp, metadata}, _from, state) do
+    to_delete = get_all_with_timestamp(state.table, prefix)
 
     # Delete everything first and then send notifications so
     # if handlers call "get", they won't see something that
     # will be deleted shortly.
-    Enum.each(to_delete, fn {property, _value} ->
+    Enum.each(to_delete, fn {property, _value, _timestamp} ->
       :ets.delete(state.table, property)
     end)
 
-    Enum.each(to_delete, fn {property, value} ->
-      dispatch(state, property, value, nil, metadata)
+    Enum.each(to_delete, fn {property, previous_value, previous_timestamp} ->
+      event = %Event{
+        table: state.table,
+        property: property,
+        value: nil,
+        previous_value: previous_value,
+        timestamp: timestamp,
+        previous_timestamp: previous_timestamp,
+        meta: metadata
+      }
+
+      dispatch(state, property, event)
     end)
 
     {:reply, :ok, state}
   end
 
-  defp dispatch(state, property, old_value, new_value, metadata) do
-    message = {state.table, property, old_value, new_value, metadata}
-
+  defp dispatch(state, property, event) do
     Registry.match(state.registry, :subscriptions, :_)
     |> Enum.each(fn {pid, match} ->
-      is_property_prefix_match?(match, property) && send(pid, message)
+      is_property_prefix_match?(match, property) && send(pid, event)
     end)
   end
 

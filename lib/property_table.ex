@@ -112,14 +112,14 @@ defmodule PropertyTable do
   @doc """
   Delete the specified property
   """
-  @spec clear(table_id(), property()) :: :ok
-  defdelegate clear(table, property), to: Table
+  @spec clear(table_id(), property(), metadata()) :: :ok
+  defdelegate clear(table, property, metadata \\ %{}), to: Table
 
   @doc """
   Clear out all properties under a prefix
   """
-  @spec clear_all(table_id(), property()) :: :ok
-  defdelegate clear_all(table, property), to: Table
+  @spec clear_all(table_id(), property(), metadata()) :: :ok
+  defdelegate clear_all(table, property, metadata \\ %{}), to: Table
 
   defp assert_property(property) do
     Enum.each(property, fn
