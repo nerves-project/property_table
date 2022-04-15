@@ -54,6 +54,11 @@ defmodule PropertyTable.Table do
     |> Enum.sort()
   end
 
+  @dialyzer {:nowarn_function, append: 1}
+  defp append([]), do: :"$1"
+  defp append([h]), do: [h | :"$1"]
+  defp append([h | t]), do: [h | append(t)]
+
   @spec match(PropertyTable.table_id(), PropertyTable.property_with_wildcards()) :: [
           {PropertyTable.property(), PropertyTable.value()}
         ]
@@ -65,11 +70,6 @@ defmodule PropertyTable.Table do
     |> Enum.map(fn [k, v] -> {k, v} end)
     |> Enum.sort()
   end
-
-  @dialyzer {:nowarn_function, append: 1}
-  defp append([]), do: :"$1"
-  defp append([h]), do: [h | :"$1"]
-  defp append([h | t]), do: [h | append(t)]
 
   @doc """
   Update or add a property
