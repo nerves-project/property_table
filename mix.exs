@@ -9,6 +9,7 @@ defmodule PropertyTable.MixProject do
       app: :property_table,
       version: @version,
       elixir: "~> 1.11",
+      aliases: aliases(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
@@ -25,6 +26,10 @@ defmodule PropertyTable.MixProject do
     ]
   end
 
+  defp aliases do
+    [bench: ["run bench/bench.exs"]]
+  end
+
   def application do
     [
       extra_applications: [:logger]
@@ -34,6 +39,7 @@ defmodule PropertyTable.MixProject do
   defp deps do
     [
       # Build dependencies
+      {:benchee, "~> 1.0", only: :dev},
       {:credo, "~> 1.6", only: :test, runtime: false},
       {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.14", only: :test, runtime: false},
