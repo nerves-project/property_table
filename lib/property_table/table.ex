@@ -227,7 +227,7 @@ defmodule PropertyTable.Table do
 
     Registry.match(state.registry, :subscriptions, :_)
     |> Enum.each(fn {pid, match} ->
-      is_property_prefix_match?(match, property) && send(pid, message)
+      is_property_prefix_match?(match, property) and send(pid, message)
     end)
   end
 
