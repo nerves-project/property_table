@@ -11,9 +11,8 @@ defmodule PropertyTable.Event do
   * `:previous_timestamp` - the timestamp when the property changed to
     `:previous_value`. Use this to calculate how long the property was the
     previous value.
-  * `:meta` - any additional metadata that was passed in the call that changed the property
   """
-  defstruct [:table, :property, :value, :timestamp, :previous_value, :previous_timestamp, :meta]
+  defstruct [:table, :property, :value, :timestamp, :previous_value, :previous_timestamp]
 
   @type t() :: %__MODULE__{
           table: PropertyTable.table_id(),
@@ -21,8 +20,7 @@ defmodule PropertyTable.Event do
           value: PropertyTable.value(),
           previous_value: PropertyTable.value(),
           timestamp: integer(),
-          previous_timestamp: integer(),
-          meta: PropertyTable.metadata()
+          previous_timestamp: integer()
         }
 
   @doc """

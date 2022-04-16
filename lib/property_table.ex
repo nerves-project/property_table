@@ -17,7 +17,6 @@ defmodule PropertyTable do
   @type property_with_wildcards :: [String.t() | :_]
   @type value :: any()
   @type property_value :: {property(), value()}
-  @type metadata :: map()
 
   @type options :: [name: table_id(), properties: [property_value()]]
 
@@ -104,22 +103,22 @@ defmodule PropertyTable do
   @doc """
   Update a property and notify listeners
   """
-  @spec put(table_id(), property(), value(), metadata()) :: :ok
-  def put(table, property, value, metadata \\ %{}) when is_list(property) do
-    Table.put(table, property, value, metadata)
+  @spec put(table_id(), property(), value()) :: :ok
+  def put(table, property, value) when is_list(property) do
+    Table.put(table, property, value)
   end
 
   @doc """
   Delete the specified property
   """
-  @spec clear(table_id(), property(), metadata()) :: :ok
-  defdelegate clear(table, property, metadata \\ %{}), to: Table
+  @spec clear(table_id(), property()) :: :ok
+  defdelegate clear(table, property), to: Table
 
   @doc """
   Clear out all properties under a prefix
   """
-  @spec clear_all(table_id(), property(), metadata()) :: :ok
-  defdelegate clear_all(table, property, metadata \\ %{}), to: Table
+  @spec clear_all(table_id(), property()) :: :ok
+  defdelegate clear_all(table, property), to: Table
 
   defp assert_property(property) do
     Enum.each(property, fn

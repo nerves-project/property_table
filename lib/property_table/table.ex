@@ -92,17 +92,16 @@ defmodule PropertyTable.Table do
   @spec put(
           PropertyTable.table_id(),
           PropertyTable.property(),
-          PropertyTable.value(),
-          PropertyTable.metadata()
+          PropertyTable.value()
         ) ::
           :ok
 
-  def put(table, property, nil, metadata) do
-    clear(table, property, metadata)
+  def put(table, property, nil) do
+    clear(table, property)
   end
 
-  def put(table, property, value, metadata) do
-    GenServer.call(table, {:put, property, value, System.monotonic_time(), metadata})
+  def put(table, property, value) do
+    GenServer.call(table, {:put, property, value, System.monotonic_time()})
   end
 
   @doc """
@@ -110,18 +109,18 @@ defmodule PropertyTable.Table do
 
   If the property changed, this will send events to all listeners.
   """
-  @spec clear(PropertyTable.table_id(), PropertyTable.property(), PropertyTable.metadata()) :: :ok
-  def clear(table, property, metadata) when is_list(property) do
-    GenServer.call(table, {:clear, property, System.monotonic_time(), metadata})
+  @spec clear(PropertyTable.table_id(), PropertyTable.property()) :: :ok
+  def clear(table, property) when is_list(property) do
+    GenServer.call(table, {:clear, property, System.monotonic_time()})
   end
 
   @doc """
   Clear out all of the properties under a prefix
   """
-  @spec clear_all(PropertyTable.table_id(), PropertyTable.property(), PropertyTable.metadata()) ::
+  @spec clear_all(PropertyTable.table_id(), PropertyTable.property()) ::
           :ok
-  def clear_all(table, property, metadata) when is_list(property) do
-    GenServer.call(table, {:clear_all, property, System.monotonic_time(), metadata})
+  def clear_all(table, property) when is_list(property) do
+    GenServer.call(table, {:clear_all, property, System.monotonic_time()})
   end
 
   @impl GenServer
@@ -130,7 +129,7 @@ defmodule PropertyTable.Table do
   end
 
   @impl GenServer
-  def handle_call({:put, property, value, timestamp, metadata}, _from, state) do
+  def handle_call({:put, property, value, timestamp}, _from, state) do
     case :ets.lookup(state.table, property) do
       [{^property, ^value, _last_change}] ->
         # No change, so no notifications
@@ -143,8 +142,7 @@ defmodule PropertyTable.Table do
           value: value,
           previous_value: previous_value,
           timestamp: timestamp,
-          previous_timestamp: last_change,
-          meta: metadata
+          previous_timestamp: last_change
         }
 
         :ets.insert(state.table, {property, value, timestamp})
@@ -159,8 +157,7 @@ defmodule PropertyTable.Table do
           value: value,
           previous_value: nil,
           timestamp: timestamp,
-          previous_timestamp: nil,
-          meta: metadata
+          previous_timestamp: nil
         }
 
         dispatch(state, property, event)
@@ -170,7 +167,7 @@ defmodule PropertyTable.Table do
   end
 
   @impl GenServer
-  def handle_call({:clear, property, timestamp, metadata}, _from, state) do
+  def handle_call({:clear, property, timestamp}, _from, state) do
     case :ets.lookup(state.table, property) do
       [{^property, previous_value, last_change}] ->
         :ets.delete(state.table, property)
@@ -181,8 +178,7 @@ defmodule PropertyTable.Table do
           value: nil,
           previous_value: previous_value,
           timestamp: timestamp,
-          previous_timestamp: last_change,
-          meta: metadata
+          previous_timestamp: last_change
         }
 
         dispatch(state, property, event)
@@ -195,7 +191,7 @@ defmodule PropertyTable.Table do
   end
 
   @impl GenServer
-  def handle_call({:clear_all, prefix, timestamp, metadata}, _from, state) do
+  def handle_call({:clear_all, prefix, timestamp}, _from, state) do
     to_delete = get_all_with_timestamp(state.table, prefix)
 
     # Delete everything first and then send notifications so
@@ -212,8 +208,7 @@ defmodule PropertyTable.Table do
         value: nil,
         previous_value: previous_value,
         timestamp: timestamp,
-        previous_timestamp: previous_timestamp,
-        meta: metadata
+        previous_timestamp: previous_timestamp
       }
 
       dispatch(state, property, event)

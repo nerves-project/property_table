@@ -69,8 +69,7 @@ Then when a property changes value, the Erlang process that called
   value: %{ipv4: %{method: :dhcp}}
   timestamp: 200,
   previous_value: %{},
-  previous_timestamp: 100,
-  meta: %{},
+  previous_timestamp: 100
 }
 ```
 

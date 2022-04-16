@@ -96,16 +96,6 @@ defmodule PropertyTableTest do
     PropertyTable.clear(table, property)
     assert_receive %Event{table: ^table, property: ^property, value: nil, previous_value: 100}
 
-    PropertyTable.put(table, property, 101, %{hello: 1})
-
-    assert_receive %Event{
-      table: ^table,
-      property: ^property,
-      value: 101,
-      previous_value: nil,
-      meta: %{hello: 1}
-    }
-
     PropertyTable.unsubscribe(table, property)
 
     PropertyTable.put(table, property, 102)
