@@ -18,9 +18,15 @@ defmodule PropertyTable do
   @type value :: any()
   @type property_value :: {property(), value()}
 
-  @type options :: [name: table_id(), properties: [property_value()]]
+  @typedoc """
+  PropertyTable configuration options
 
-  @spec start_link(options()) :: {:ok, pid} | {:error, term}
+  * `:name` - the name for the PropertyTable
+  * `:properties` - an initial set of properties to load into the table
+  """
+  @type option() :: {:name, table_id()} | {:properties, [property_value()]}
+
+  @spec start_link([option()]) :: Supervisor.on_start()
   defdelegate start_link(options), to: PropertyTable.Supervisor
 
   @doc """

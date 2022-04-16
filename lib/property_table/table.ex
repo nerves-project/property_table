@@ -22,9 +22,9 @@ defmodule PropertyTable.Table do
     end)
   end
 
-  @spec start_link({PropertyTable.table_id(), Registry.registry()}) :: GenServer.on_start()
-  def start_link({table, _registry_name} = args) do
-    GenServer.start_link(__MODULE__, args, name: table)
+  @spec start_link(Keyword.t()) :: GenServer.on_start()
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts, name: opts[:name])
   end
 
   @spec get(PropertyTable.table_id(), PropertyTable.property(), PropertyTable.value()) ::
@@ -124,8 +124,8 @@ defmodule PropertyTable.Table do
   end
 
   @impl GenServer
-  def init({table, registry_name}) do
-    {:ok, %{table: table, registry: registry_name}}
+  def init(opts) do
+    {:ok, %{table: opts[:name], registry: opts[:registry_name]}}
   end
 
   @impl GenServer
