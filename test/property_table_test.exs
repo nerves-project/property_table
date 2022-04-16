@@ -280,4 +280,13 @@ defmodule PropertyTableTest do
     assert previous_timestamp == event_previous_timestamp
     assert timestamp == event_timestamp
   end
+
+  test "sending the old tuple events", %{test: table} do
+    {:ok, _pid} = start_supervised({PropertyTable, name: table, tuple_events: true})
+    property = ["test", "a", "b"]
+
+    PropertyTable.subscribe(table, [])
+    PropertyTable.put(table, property, 101)
+    assert_receive {^table, ^property, nil, 101, %{old_timestamp: _, new_timestamp: _}}
+  end
 end

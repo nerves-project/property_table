@@ -23,8 +23,12 @@ defmodule PropertyTable do
 
   * `:name` - the name for the PropertyTable
   * `:properties` - an initial set of properties to load into the table
+  * `:tuple_events` - set to `true` to send change messages as tuple. Do not
+    use this. It is a transitional feature to help modify existing code to use
+    this library.
   """
-  @type option() :: {:name, table_id()} | {:properties, [property_value()]}
+  @type option() ::
+          {:name, table_id()} | {:properties, [property_value()]} | {:tuple_events, boolean()}
 
   @spec start_link([option()]) :: Supervisor.on_start()
   defdelegate start_link(options), to: PropertyTable.Supervisor

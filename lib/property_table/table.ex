@@ -125,7 +125,12 @@ defmodule PropertyTable.Table do
 
   @impl GenServer
   def init(opts) do
-    {:ok, %{table: opts[:name], registry: opts[:registry_name]}}
+    {:ok,
+     %{
+       table: opts[:name],
+       registry: opts[:registry_name],
+       tuple_events: opts[:tuple_events] || false
+     }}
   end
 
   @impl GenServer
@@ -218,9 +223,11 @@ defmodule PropertyTable.Table do
   end
 
   defp dispatch(state, property, event) do
+    message = if state.tuple_events, do: Event.to_tuple(event), else: event
+
     Registry.match(state.registry, :subscriptions, :_)
     |> Enum.each(fn {pid, match} ->
-      is_property_prefix_match?(match, property) && send(pid, event)
+      is_property_prefix_match?(match, property) && send(pid, message)
     end)
   end
 
