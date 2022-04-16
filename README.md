@@ -32,7 +32,26 @@ NetworkTable
     └── :internet
 ```
 
-And inserting the values to the table would look like:
+PropertyTables are either used by libraries to share status information or you
+can create your own. A common use case is that the code that creates the
+PropertyTable will manage the properties in the table. All other code reads
+property values or subscribes to changes.
+
+Creating a PropertyTable is either done by adding a `child_spec` to a
+supervision tree:
+
+```elixir
+{PropertyTable, name: NetworkTable}
+```
+
+Or manually calling `PropertyTable.start_link/1`. If you're at an IEx prompt,
+run the following so that you can follow along with the rest of the examples:
+
+```elixir
+PropertyTable.start_link(name: NetworkTable)
+```
+
+Inserting values into the table looks like:
 
 ```elixir
 PropertyTable.put(NetworkTable, ["available_interfaces"], ["eth0", "eth1"])

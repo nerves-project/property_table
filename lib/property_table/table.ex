@@ -4,6 +4,12 @@ defmodule PropertyTable.Table do
 
   alias PropertyTable.Event
 
+  @type state() :: %{
+          table: PropertyTable.table_id(),
+          registry: Registry.registry(),
+          tuple_events: boolean()
+        }
+
   @doc """
   Create the ETS table that holds all of the properties
 
@@ -22,9 +28,15 @@ defmodule PropertyTable.Table do
     end)
   end
 
-  @spec start_link(Keyword.t()) :: GenServer.on_start()
+  @doc false
+  @spec server_name(PropertyTable.table_id()) :: atom
+  def server_name(name) do
+    Module.concat(name, Table)
+  end
+
+  @spec start_link(state()) :: GenServer.on_start()
   def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: opts[:name])
+    GenServer.start_link(__MODULE__, opts, name: server_name(opts.table))
   end
 
   @spec get(PropertyTable.table_id(), PropertyTable.property(), PropertyTable.value()) ::
@@ -101,7 +113,7 @@ defmodule PropertyTable.Table do
   end
 
   def put(table, property, value) do
-    GenServer.call(table, {:put, property, value, System.monotonic_time()})
+    GenServer.call(server_name(table), {:put, property, value, System.monotonic_time()})
   end
 
   @doc """
@@ -111,7 +123,7 @@ defmodule PropertyTable.Table do
   """
   @spec clear(PropertyTable.table_id(), PropertyTable.property()) :: :ok
   def clear(table, property) when is_list(property) do
-    GenServer.call(table, {:clear, property, System.monotonic_time()})
+    GenServer.call(server_name(table), {:clear, property, System.monotonic_time()})
   end
 
   @doc """
@@ -120,17 +132,12 @@ defmodule PropertyTable.Table do
   @spec clear_all(PropertyTable.table_id(), PropertyTable.property()) ::
           :ok
   def clear_all(table, property) when is_list(property) do
-    GenServer.call(table, {:clear_all, property, System.monotonic_time()})
+    GenServer.call(server_name(table), {:clear_all, property, System.monotonic_time()})
   end
 
   @impl GenServer
   def init(opts) do
-    {:ok,
-     %{
-       table: opts[:name],
-       registry: opts[:registry_name],
-       tuple_events: opts[:tuple_events] || false
-     }}
+    {:ok, opts}
   end
 
   @impl GenServer

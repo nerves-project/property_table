@@ -21,17 +21,69 @@ defmodule PropertyTable do
   @typedoc """
   PropertyTable configuration options
 
-  * `:name` - the name for the PropertyTable
-  * `:properties` - an initial set of properties to load into the table
-  * `:tuple_events` - set to `true` to send change messages as tuple. Do not
-    use this. It is a transitional feature to help modify existing code to use
-    this library.
+  See `start_link/2` for usage.
   """
   @type option() ::
           {:name, table_id()} | {:properties, [property_value()]} | {:tuple_events, boolean()}
 
+  @doc """
+  Start a PropertyTable's supervision tree
+
+  To create a PropertyTable for your application or library, add the following
+  `child_spec` to one of your supervision trees:
+
+  ```elixir
+  {PropertyTable, name: MyTableName}
+  ```
+
+  The `:name` option is required. All calls to `PropertyTable` will need to
+  know it and the process will be registered under than name so be sure it's
+  unique.
+
+  Additional options are:
+
+  * `:properties` - a list of `{property, value}` tuples to initially populate
+    the `PropertyTable`
+  * `:tuple_events` - set to `true` for change events to be in the old tuple
+    format. This is not recommended for new code and hopefully will be removed
+    in the future.
+  """
   @spec start_link([option()]) :: Supervisor.on_start()
-  defdelegate start_link(options), to: PropertyTable.Supervisor
+  def start_link(options) do
+    name =
+      case Keyword.fetch(options, :name) do
+        {:ok, name} when is_atom(name) ->
+          name
+
+        {:ok, other} ->
+          raise ArgumentError, "expected :name to be an atom, got: #{inspect(other)}"
+
+        :error ->
+          raise ArgumentError, "expected :name option to be present"
+      end
+
+    properties = Keyword.get(options, :properties, [])
+
+    unless Enum.all?(properties, &property_tuple?/1) do
+      raise ArgumentError,
+            "expected :properties to be a list of property/value tuples, got: #{inspect(properties)}"
+    end
+
+    tuple_events = Keyword.get(options, :tuple_events, false)
+
+    unless is_boolean(tuple_events) do
+      raise ArgumentError, "expected :tuple_events to be boolean, got: #{inspect(tuple_events)}"
+    end
+
+    Supervisor.start_link(
+      __MODULE__.Supervisor,
+      %{table: name, properties: properties, tuple_events: tuple_events},
+      name: name
+    )
+  end
+
+  defp property_tuple?({property, _value}) when is_list(property), do: true
+  defp property_tuple?(_), do: false
 
   @doc """
   Returns a specification to start a property_table under a supervisor.
