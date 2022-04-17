@@ -61,10 +61,11 @@ PropertyTable.put(NetworkTable, ["interface", "eth0", "config"], %{ipv4: %{metho
 
 Values can be any Elixir data structure except for `nil`. `nil` is used to
 identify non-existent properties. Therefore, setting a property to `nil` deletes
-the property.
+the property. You can also call `PropertyTable.clear/2` to delete a property.
 
-Users can get and listen for changes in multiple properties by specifying the beginning of a
-path. For example, if you wanted to get every property that begins with `"interface"`, run:
+Properties are hierarchical and you can get multiple properties by specifying
+the beginning of a path. For example, if you wanted to get every property that
+begins with `"interface"`, run:
 
 ```elixir
 PropertyTable.get_all(NetworkTable, ["interface"])
@@ -92,8 +93,8 @@ Then when a property changes value, the Erlang process that called
 }
 ```
 
-As shown, events not only contain the property and new value, but also
-information about the previous value.
+Events not only contain the property and new value, but also information about
+when they were set (`System.monotonic_time/0`) and their previous value.
 
 ## License
 
