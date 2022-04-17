@@ -16,6 +16,23 @@ defmodule PropertyTableTest do
     assert PropertyTable.get(table, property2) == 2
   end
 
+  test "clearing properties", %{test: table} do
+    property1 = ["test", "a", "b"]
+    property2 = ["test", "c"]
+
+    {:ok, _pid} =
+      start_supervised({PropertyTable, properties: [{property1, 1}, {property2, 2}], name: table})
+
+    assert PropertyTable.get(table, property1) == 1
+    PropertyTable.clear(table, property1)
+    assert PropertyTable.get(table, property1) == nil
+
+    # Redundant clear does nothing
+    PropertyTable.clear(table, property1)
+
+    assert PropertyTable.get_all(table) == [{property2, 2}]
+  end
+
   test "crashing table doesn't lose properties", %{test: table} do
     property1 = ["test", "a"]
     property2 = ["test", "b"]
