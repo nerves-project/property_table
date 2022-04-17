@@ -43,7 +43,7 @@ defmodule PropertyTable.Table do
           PropertyTable.value()
   def get(table, property, default) do
     case :ets.lookup(table, property) do
-      [{^property, value, _timestamp}] -> value
+      [{_property, value, _timestamp}] -> value
       [] -> default
     end
   end
@@ -52,7 +52,7 @@ defmodule PropertyTable.Table do
           {:ok, PropertyTable.value(), integer()} | :error
   def fetch_with_timestamp(table, property) do
     case :ets.lookup(table, property) do
-      [{^property, value, timestamp}] -> {:ok, value, timestamp}
+      [{_property, value, timestamp}] -> {:ok, value, timestamp}
       [] -> :error
     end
   end
@@ -140,11 +140,11 @@ defmodule PropertyTable.Table do
   @impl GenServer
   def handle_call({:put, property, value, timestamp}, _from, state) do
     case :ets.lookup(state.table, property) do
-      [{^property, ^value, _last_change}] ->
+      [{_property, ^value, _last_change}] ->
         # No change, so no notifications
         :ok
 
-      [{^property, previous_value, last_change}] ->
+      [{_property, previous_value, last_change}] ->
         event = %Event{
           table: state.table,
           property: property,
@@ -177,10 +177,8 @@ defmodule PropertyTable.Table do
 
   @impl GenServer
   def handle_call({:clear, property, timestamp}, _from, state) do
-    case :ets.lookup(state.table, property) do
-      [{^property, previous_value, last_change}] ->
-        :ets.delete(state.table, property)
-
+    case :ets.take(state.table, property) do
+      [{_property, previous_value, last_change}] ->
         event = %Event{
           table: state.table,
           property: property,
