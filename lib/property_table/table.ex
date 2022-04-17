@@ -65,7 +65,6 @@ defmodule PropertyTable.Table do
 
     :ets.match(table, matchspec)
     |> Enum.map(fn [k, v] -> {prefix ++ k, v} end)
-    |> Enum.sort()
   end
 
   @spec get_all_with_timestamp(PropertyTable.table_id(), PropertyTable.property()) :: [
@@ -76,7 +75,6 @@ defmodule PropertyTable.Table do
 
     :ets.match(table, matchspec)
     |> Enum.map(fn [k, v, t] -> {prefix ++ k, v, t} end)
-    |> Enum.sort()
   end
 
   @dialyzer {:nowarn_function, append: 1}
@@ -93,7 +91,6 @@ defmodule PropertyTable.Table do
       is_property_match?(pattern, k)
     end)
     |> Enum.map(fn [k, v] -> {k, v} end)
-    |> Enum.sort()
   end
 
   @doc """
