@@ -61,36 +61,51 @@ defmodule PropertyTable.Table do
           {PropertyTable.property(), PropertyTable.value()}
         ]
   def get_all(table, prefix) do
-    matchspec = {append(prefix), :"$2", :_}
-
-    :ets.match(table, matchspec)
-    |> Enum.map(fn [k, v] -> {prefix ++ k, v} end)
+    :ets.foldl(
+      fn {property, value, _timestamp}, acc ->
+        if is_property_prefix_match?(prefix, property) do
+          [{property, value} | acc]
+        else
+          acc
+        end
+      end,
+      [],
+      table
+    )
   end
 
   @spec get_all_with_timestamp(PropertyTable.table_id(), PropertyTable.property()) :: [
           {PropertyTable.property(), PropertyTable.value(), integer()}
         ]
   def get_all_with_timestamp(table, prefix) do
-    matchspec = {append(prefix), :"$2", :"$3"}
-
-    :ets.match(table, matchspec)
-    |> Enum.map(fn [k, v, t] -> {prefix ++ k, v, t} end)
+    :ets.foldl(
+      fn {property, value, timestamp}, acc ->
+        if is_property_prefix_match?(prefix, property) do
+          [{property, value, timestamp} | acc]
+        else
+          acc
+        end
+      end,
+      [],
+      table
+    )
   end
-
-  @dialyzer {:nowarn_function, append: 1}
-  defp append([]), do: :"$1"
-  defp append([h]), do: [h | :"$1"]
-  defp append([h | t]), do: [h | append(t)]
 
   @spec match(PropertyTable.table_id(), PropertyTable.property_with_wildcards()) :: [
           {PropertyTable.property(), PropertyTable.value()}
         ]
   def match(table, pattern) do
-    :ets.match(table, {:"$1", :"$2", :_})
-    |> Enum.filter(fn [k, _v] ->
-      is_property_match?(pattern, k)
-    end)
-    |> Enum.map(fn [k, v] -> {k, v} end)
+    :ets.foldl(
+      fn {property, value, _timestamp}, acc ->
+        if is_property_match?(pattern, property) do
+          [{property, value} | acc]
+        else
+          acc
+        end
+      end,
+      [],
+      table
+    )
   end
 
   @doc """
