@@ -14,15 +14,33 @@ create_sub = fn ->
   pid
 end
 
+starter_properties = create_properties.(1_000_000..1_000_100)
+
 inputs = [
   {"100 properties/0 subs",
-   %{initial_properties: [], non_matching_subscribers: 0, add: create_properties.(1..100)}},
+   %{
+     initial_properties: starter_properties,
+     non_matching_subscribers: 0,
+     add: create_properties.(1..100)
+   }},
   {"1000 properties/0 subs",
-   %{initial_properties: [], non_matching_subscribers: 0, add: create_properties.(1..1000)}},
+   %{
+     initial_properties: starter_properties,
+     non_matching_subscribers: 0,
+     add: create_properties.(1..1000)
+   }},
   {"100 properties/2 subs",
-   %{initial_properties: [], non_matching_subscribers: 2, add: create_properties.(1..100)}},
+   %{
+     initial_properties: starter_properties,
+     non_matching_subscribers: 2,
+     add: create_properties.(1..100)
+   }},
   {"1000 properties/2 subs",
-   %{initial_properties: [], non_matching_subscribers: 2, add: create_properties.(1..1000)}}
+   %{
+     initial_properties: starter_properties,
+     non_matching_subscribers: 2,
+     add: create_properties.(1..1000)
+   }}
 ]
 
 Benchee.run(
@@ -30,14 +48,18 @@ Benchee.run(
     "insertion" => fn input ->
       Enum.each(input.add, fn {k, v} -> PropertyTable.put(BencheeTable, k, v) end)
       input
+    end,
+    "get 1000x" => fn input ->
+      for _ <- 1..1000, do: PropertyTable.get(BencheeTable, ["first", "1000042"])
+      input
     end
   },
-  warmup: 2,
-  time: 10,
+  warmup: 1,
+  time: 5,
   memory_time: 1,
   inputs: inputs,
   before_each: fn input ->
-    {:ok, pid} = PropertyTable.Supervisor.start_link(name: BencheeTable)
+    {:ok, pid} = PropertyTable.start_link(name: BencheeTable)
     Enum.each(input.initial_properties, fn {k, v} -> PropertyTable.put(BencheeTable, k, v) end)
 
     for _ <- 1..input.non_matching_subscribers do
