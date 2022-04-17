@@ -125,10 +125,10 @@ defmodule PropertyTableTest do
     property = ["test"]
 
     PropertyTable.put(table, property, 124)
-    assert PropertyTable.get_all(table, []) == [{property, 124}]
+    assert PropertyTable.get_all(table) == [{property, 124}]
 
     PropertyTable.put(table, property, nil)
-    assert PropertyTable.get_all(table, []) == []
+    assert PropertyTable.get_all(table) == []
   end
 
   test "subscribing from one process to multiple patterns", %{test: table} do
@@ -218,32 +218,32 @@ defmodule PropertyTableTest do
     assert now - timestamp < 1_000_000
   end
 
-  defp deterministic_get_all(table, pattern) do
+  defp deterministic_match(table, pattern) do
     # The match order isn't deterministic across OTP versions, so sort it.
-    PropertyTable.get_all(table, pattern) |> Enum.sort()
+    PropertyTable.match(table, pattern) |> Enum.sort()
   end
 
-  test "getting a subtree", %{test: table} do
+  test "matching a subtree", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
     property = ["test", "a", "b"]
     property2 = ["test", "a", "c"]
 
-    assert PropertyTable.get_all(table, []) == []
+    assert PropertyTable.match(table, []) == []
 
     PropertyTable.put(table, property, 105)
-    assert PropertyTable.get_all(table, []) == [{property, 105}]
+    assert PropertyTable.match(table, []) == [{property, 105}]
 
     PropertyTable.put(table, property2, 106)
-    assert deterministic_get_all(table, []) == [{property, 105}, {property2, 106}]
-    assert deterministic_get_all(table, ["test"]) == [{property, 105}, {property2, 106}]
+    assert deterministic_match(table, []) == [{property, 105}, {property2, 106}]
+    assert deterministic_match(table, ["test"]) == [{property, 105}, {property2, 106}]
 
-    assert deterministic_get_all(table, ["test", "a"]) == [
+    assert deterministic_match(table, ["test", "a"]) == [
              {property, 105},
              {property2, 106}
            ]
 
-    assert PropertyTable.get_all(table, property) == [{property, 105}]
-    assert PropertyTable.get_all(table, property2) == [{property2, 106}]
+    assert PropertyTable.match(table, property) == [{property, 105}]
+    assert PropertyTable.match(table, property2) == [{property2, 106}]
   end
 
   test "clearing a subtree", %{test: table} do
@@ -254,12 +254,7 @@ defmodule PropertyTableTest do
     PropertyTable.put(table, ["f", "g"], 4)
 
     PropertyTable.clear_all(table, ["a"])
-    assert PropertyTable.get_all(table, []) == [{["f", "g"], 4}]
-  end
-
-  defp deterministic_match(table, pattern) do
-    # The match order isn't deterministic across OTP versions, so sort it.
-    PropertyTable.match(table, pattern) |> Enum.sort()
+    assert PropertyTable.get_all(table) == [{["f", "g"], 4}]
   end
 
   test "match using wildcards", %{test: table} do
@@ -274,39 +269,39 @@ defmodule PropertyTableTest do
     PropertyTable.put(table, ["a", "b", "c", "d"], 6)
 
     # Exact match
-    assert deterministic_match(table, ["a", "b", "c"]) == [{["a", "b", "c"], 1}]
+    assert deterministic_match(table, ["a", "b", "c", :"$"]) == [{["a", "b", "c"], 1}]
 
     # Wildcard one place
-    assert deterministic_match(table, [:_, "b", "c"]) == [
+    assert deterministic_match(table, [:_, "b", "c", :"$"]) == [
              {["A", "b", "c"], 2},
              {["a", "b", "c"], 1}
            ]
 
-    assert deterministic_match(table, ["a", :_, "c"]) == [
+    assert deterministic_match(table, ["a", :_, "c", :"$"]) == [
              {["a", "B", "c"], 3},
              {["a", "b", "c"], 1}
            ]
 
-    assert deterministic_match(table, ["a", "b", :_]) == [
+    assert deterministic_match(table, ["a", "b", :_, :"$"]) == [
              {["a", "b", "C"], 4},
              {["a", "b", "c"], 1}
            ]
 
     # Wildcard two places
-    assert deterministic_match(table, [:_, :_, "c"]) == [
+    assert deterministic_match(table, [:_, :_, "c", :"$"]) == [
              {["A", "b", "c"], 2},
              {["a", "B", "c"], 3},
              {["a", "b", "c"], 1}
            ]
 
-    assert deterministic_match(table, ["a", :_, :_]) == [
+    assert deterministic_match(table, ["a", :_, :_, :"$"]) == [
              {["a", "B", "c"], 3},
              {["a", "b", "C"], 4},
              {["a", "b", "c"], 1}
            ]
 
     # Wildcard three places
-    assert deterministic_match(table, [:_, :_, :_]) == [
+    assert deterministic_match(table, [:_, :_, :_, :"$"]) == [
              {["A", "b", "c"], 2},
              {["a", "B", "c"], 3},
              {["a", "b", "C"], 4},

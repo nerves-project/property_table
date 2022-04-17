@@ -3,6 +3,7 @@ defmodule PropertyTable.Table do
   use GenServer
 
   alias PropertyTable.Event
+  alias PropertyTable.Matcher
 
   @type state() :: %{
           table: PropertyTable.table_id(),
@@ -57,18 +58,10 @@ defmodule PropertyTable.Table do
     end
   end
 
-  @spec get_all(PropertyTable.table_id(), PropertyTable.pattern()) :: [
-          {PropertyTable.property(), PropertyTable.value()}
-        ]
-  def get_all(table, pattern) do
+  @spec get_all(PropertyTable.table_id()) :: [{PropertyTable.property(), PropertyTable.value()}]
+  def get_all(table) do
     :ets.foldl(
-      fn {property, value, _timestamp}, acc ->
-        if is_property_prefix_match?(pattern, property) do
-          [{property, value} | acc]
-        else
-          acc
-        end
-      end,
+      fn {property, value, _timestamp}, acc -> [{property, value} | acc] end,
       [],
       table
     )
@@ -80,7 +73,7 @@ defmodule PropertyTable.Table do
   def get_all_with_timestamp(table, pattern) do
     :ets.foldl(
       fn {property, value, timestamp}, acc ->
-        if is_property_prefix_match?(pattern, property) do
+        if Matcher.match?(pattern, property) do
           [{property, value, timestamp} | acc]
         else
           acc
@@ -97,7 +90,7 @@ defmodule PropertyTable.Table do
   def match(table, pattern) do
     :ets.foldl(
       fn {property, value, _timestamp}, acc ->
-        if is_property_match?(pattern, property) do
+        if Matcher.match?(pattern, property) do
           [{property, value} | acc]
         else
           acc
@@ -244,35 +237,8 @@ defmodule PropertyTable.Table do
 
     Registry.dispatch(state.registry, :subscriptions, fn entries ->
       for {pid, pattern} <- entries,
-          is_property_prefix_match?(pattern, property),
+          Matcher.match?(pattern, property),
           do: send(pid, message)
     end)
   end
-
-  # Check if the first parameter is a prefix of the second parameter with
-  # wildcards
-  defp is_property_prefix_match?([], _property), do: true
-
-  defp is_property_prefix_match?([value | match_rest], [value | property_rest]) do
-    is_property_prefix_match?(match_rest, property_rest)
-  end
-
-  defp is_property_prefix_match?([:_ | match_rest], [_any | property_rest]) do
-    is_property_prefix_match?(match_rest, property_rest)
-  end
-
-  defp is_property_prefix_match?(_match, _property), do: false
-
-  # Check if the first parameter matches the second parameter with wildcards
-  defp is_property_match?([], []), do: true
-
-  defp is_property_match?([value | match_rest], [value | property_rest]) do
-    is_property_match?(match_rest, property_rest)
-  end
-
-  defp is_property_match?([:_ | match_rest], [_any | property_rest]) do
-    is_property_match?(match_rest, property_rest)
-  end
-
-  defp is_property_match?(_match, _property), do: false
 end

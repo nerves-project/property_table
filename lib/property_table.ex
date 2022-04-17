@@ -3,6 +3,7 @@ defmodule PropertyTable do
              |> String.split("## Usage")
              |> Enum.fetch!(1)
 
+  alias PropertyTable.Matcher
   alias PropertyTable.Table
 
   @typedoc """
@@ -14,7 +15,7 @@ defmodule PropertyTable do
   Properties
   """
   @type property() :: [String.t()]
-  @type pattern() :: [String.t() | :_]
+  @type pattern() :: [String.t() | :_ | :"$"]
   @type value() :: any()
   @type property_value() :: {property(), value()}
 
@@ -143,14 +144,12 @@ defmodule PropertyTable do
   @doc """
   Get all properties
 
-  It's possible to pass a prefix to only return properties under a specific path.
+  This function might return a really long list so it's mainly intended for
+  debug or convenience when you know that the table only contains a few
+  properties.
   """
-  @spec get_all(table_id(), pattern()) :: [{property(), value()}]
-  def get_all(table, pattern \\ []) when is_list(pattern) do
-    assert_property(pattern)
-
-    Table.get_all(table, pattern)
-  end
+  @spec get_all(table_id()) :: [{property(), value()}]
+  defdelegate get_all(table), to: Table
 
   @doc """
   Get a list of all properties matching the specified property pattern
@@ -166,9 +165,7 @@ defmodule PropertyTable do
   Update a property and notify listeners
   """
   @spec put(table_id(), property(), value()) :: :ok
-  def put(table, property, value) when is_list(property) do
-    Table.put(table, property, value)
-  end
+  defdelegate put(table, property, value), to: Table
 
   @doc """
   Delete the specified property
@@ -177,24 +174,22 @@ defmodule PropertyTable do
   defdelegate clear(table, property), to: Table
 
   @doc """
-  Clear out all properties under a prefix
+  Clear out all properties that match a pattern
   """
   @spec clear_all(table_id(), pattern()) :: :ok
   defdelegate clear_all(table, pattern), to: Table
 
   defp assert_property(property) do
-    Enum.each(property, fn
-      v when is_binary(v) -> :ok
-      :_ -> raise ArgumentError, "Wildcards not allowed in this property"
-      _ -> raise ArgumentError, "Property should be a list of strings"
-    end)
+    case Matcher.check_property(property) do
+      :ok -> :ok
+      {:error, exception} -> raise exception
+    end
   end
 
   defp assert_pattern(pattern) do
-    Enum.each(pattern, fn
-      v when is_binary(v) -> :ok
-      :_ -> :ok
-      _ -> raise ArgumentError, "Pattern should be a list of strings"
-    end)
+    case Matcher.check_pattern(pattern) do
+      :ok -> :ok
+      {:error, exception} -> raise exception
+    end
   end
 end
