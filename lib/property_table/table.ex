@@ -57,13 +57,13 @@ defmodule PropertyTable.Table do
     end
   end
 
-  @spec get_all(PropertyTable.table_id(), PropertyTable.property()) :: [
+  @spec get_all(PropertyTable.table_id(), PropertyTable.pattern()) :: [
           {PropertyTable.property(), PropertyTable.value()}
         ]
-  def get_all(table, prefix) do
+  def get_all(table, pattern) do
     :ets.foldl(
       fn {property, value, _timestamp}, acc ->
-        if is_property_prefix_match?(prefix, property) do
+        if is_property_prefix_match?(pattern, property) do
           [{property, value} | acc]
         else
           acc
@@ -74,13 +74,13 @@ defmodule PropertyTable.Table do
     )
   end
 
-  @spec get_all_with_timestamp(PropertyTable.table_id(), PropertyTable.property()) :: [
+  @spec get_all_with_timestamp(PropertyTable.table_id(), PropertyTable.pattern()) :: [
           {PropertyTable.property(), PropertyTable.value(), integer()}
         ]
-  def get_all_with_timestamp(table, prefix) do
+  def get_all_with_timestamp(table, pattern) do
     :ets.foldl(
       fn {property, value, timestamp}, acc ->
-        if is_property_prefix_match?(prefix, property) do
+        if is_property_prefix_match?(pattern, property) do
           [{property, value, timestamp} | acc]
         else
           acc
@@ -91,7 +91,7 @@ defmodule PropertyTable.Table do
     )
   end
 
-  @spec match(PropertyTable.table_id(), PropertyTable.property_with_wildcards()) :: [
+  @spec match(PropertyTable.table_id(), PropertyTable.pattern()) :: [
           {PropertyTable.property(), PropertyTable.value()}
         ]
   def match(table, pattern) do
@@ -141,10 +141,10 @@ defmodule PropertyTable.Table do
   @doc """
   Clear out all of the properties under a prefix
   """
-  @spec clear_all(PropertyTable.table_id(), PropertyTable.property()) ::
+  @spec clear_all(PropertyTable.table_id(), PropertyTable.pattern()) ::
           :ok
-  def clear_all(table, property) when is_list(property) do
-    GenServer.call(server_name(table), {:clear_all, property, System.monotonic_time()})
+  def clear_all(table, pattern) when is_list(pattern) do
+    GenServer.call(server_name(table), {:clear_all, pattern, System.monotonic_time()})
   end
 
   @impl GenServer
@@ -213,8 +213,8 @@ defmodule PropertyTable.Table do
   end
 
   @impl GenServer
-  def handle_call({:clear_all, prefix, timestamp}, _from, state) do
-    to_delete = get_all_with_timestamp(state.table, prefix)
+  def handle_call({:clear_all, pattern, timestamp}, _from, state) do
+    to_delete = get_all_with_timestamp(state.table, pattern)
 
     # Delete everything first and then send notifications so
     # if handlers call "get", they won't see something that

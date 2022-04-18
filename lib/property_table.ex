@@ -13,10 +13,10 @@ defmodule PropertyTable do
   @typedoc """
   Properties
   """
-  @type property :: [String.t()]
-  @type property_with_wildcards :: [String.t() | :_]
-  @type value :: any()
-  @type property_value :: {property(), value()}
+  @type property() :: [String.t()]
+  @type pattern() :: [String.t() | :_]
+  @type value() :: any()
+  @type property_value() :: {property(), value()}
 
   @typedoc """
   PropertyTable configuration options
@@ -101,12 +101,12 @@ defmodule PropertyTable do
   @doc """
   Subscribe to receive events
   """
-  @spec subscribe(table_id(), property_with_wildcards()) :: :ok
-  def subscribe(table, property) when is_list(property) do
-    assert_property_with_wildcards(property)
+  @spec subscribe(table_id(), pattern()) :: :ok
+  def subscribe(table, pattern) when is_list(pattern) do
+    assert_pattern(pattern)
 
     registry = PropertyTable.Supervisor.registry_name(table)
-    {:ok, _} = Registry.register(registry, :subscriptions, property)
+    {:ok, _} = Registry.register(registry, :subscriptions, pattern)
 
     :ok
   end
@@ -114,8 +114,8 @@ defmodule PropertyTable do
   @doc """
   Stop subscribing to a property
   """
-  @spec unsubscribe(table_id(), property_with_wildcards()) :: :ok
-  def unsubscribe(table, property) when is_list(property) do
+  @spec unsubscribe(table_id(), pattern()) :: :ok
+  def unsubscribe(table, pattern) when is_list(pattern) do
     registry = PropertyTable.Supervisor.registry_name(table)
     Registry.unregister(registry, :subscriptions)
   end
@@ -145,19 +145,19 @@ defmodule PropertyTable do
 
   It's possible to pass a prefix to only return properties under a specific path.
   """
-  @spec get_all(table_id(), property()) :: [{property(), value()}]
-  def get_all(table, prefix \\ []) when is_list(prefix) do
-    assert_property(prefix)
+  @spec get_all(table_id(), pattern()) :: [{property(), value()}]
+  def get_all(table, pattern \\ []) when is_list(pattern) do
+    assert_property(pattern)
 
-    Table.get_all(table, prefix)
+    Table.get_all(table, pattern)
   end
 
   @doc """
   Get a list of all properties matching the specified property pattern
   """
-  @spec match(table_id(), property_with_wildcards()) :: [{property(), value()}]
+  @spec match(table_id(), pattern()) :: [{property(), value()}]
   def match(table, pattern) when is_list(pattern) do
-    assert_property_with_wildcards(pattern)
+    assert_pattern(pattern)
 
     Table.match(table, pattern)
   end
@@ -179,8 +179,8 @@ defmodule PropertyTable do
   @doc """
   Clear out all properties under a prefix
   """
-  @spec clear_all(table_id(), property()) :: :ok
-  defdelegate clear_all(table, property), to: Table
+  @spec clear_all(table_id(), pattern()) :: :ok
+  defdelegate clear_all(table, pattern), to: Table
 
   defp assert_property(property) do
     Enum.each(property, fn
@@ -190,11 +190,11 @@ defmodule PropertyTable do
     end)
   end
 
-  defp assert_property_with_wildcards(property) do
-    Enum.each(property, fn
+  defp assert_pattern(pattern) do
+    Enum.each(pattern, fn
       v when is_binary(v) -> :ok
       :_ -> :ok
-      _ -> raise ArgumentError, "Property should be a list of strings"
+      _ -> raise ArgumentError, "Pattern should be a list of strings"
     end)
   end
 end
