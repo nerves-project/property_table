@@ -117,7 +117,7 @@ defmodule PropertyTable do
   @spec unsubscribe(table_id(), pattern()) :: :ok
   def unsubscribe(table, pattern) when is_list(pattern) do
     registry = PropertyTable.Supervisor.registry_name(table)
-    Registry.unregister(registry, :subscriptions)
+    Registry.unregister_match(registry, :subscriptions, pattern)
   end
 
   @doc """
