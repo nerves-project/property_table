@@ -114,6 +114,61 @@ defmodule PropertyTableTest do
     assert PropertyTable.get_all(table, []) == []
   end
 
+  test "subscribing from one process to multiple patterns", %{test: table} do
+    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    property1 = ["test1"]
+    property2 = ["test2"]
+    property3 = ["test3"]
+    PropertyTable.subscribe(table, property1)
+    PropertyTable.subscribe(table, property2)
+
+    # Check that both subscriptions work
+    PropertyTable.put(table, property1, 99)
+    assert_receive %Event{table: ^table, property: ^property1, value: 99, previous_value: nil}
+
+    PropertyTable.put(table, property2, 100)
+    assert_receive %Event{table: ^table, property: ^property2, value: 100, previous_value: nil}
+
+    PropertyTable.put(table, property3, 101)
+    refute_receive _
+
+    # Check that unsubscribing to one doesn't stop notifications to the other
+    PropertyTable.unsubscribe(table, property1)
+
+    PropertyTable.clear(table, property1)
+    refute_receive _
+    PropertyTable.put(table, property2, 102)
+    assert_receive %Event{table: ^table, property: ^property2, value: 102, previous_value: 100}
+
+    PropertyTable.unsubscribe(table, property2)
+    PropertyTable.clear(table, property2)
+    refute_receive _
+  end
+
+  test "multiple subscriptions from one process", %{test: table} do
+    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    property1 = ["test1"]
+    PropertyTable.subscribe(table, property1)
+    PropertyTable.subscribe(table, property1)
+
+    # Check that two notifications are sent
+    PropertyTable.put(table, property1, 99)
+    assert_receive %Event{table: ^table, property: ^property1, value: 99, previous_value: nil}
+    assert_receive %Event{table: ^table, property: ^property1, value: 99, previous_value: nil}
+
+    # Unsubscribe once
+    PropertyTable.unsubscribe(table, property1)
+    PropertyTable.put(table, property1, 100)
+
+    assert_receive %Event{table: ^table, property: ^property1, value: 100, previous_value: 99}
+    refute_receive _
+
+    # Unsubscribe the second time
+    PropertyTable.unsubscribe(table, property1)
+    PropertyTable.put(table, property1, 101)
+    refute_receive _
+  end
+
   test "generic subscribers receive events", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
     property = ["test", "a", "b"]
