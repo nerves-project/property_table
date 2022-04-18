@@ -242,9 +242,10 @@ defmodule PropertyTable.Table do
   defp dispatch(state, property, event) do
     message = if state.tuple_events, do: Event.to_tuple(event), else: event
 
-    Registry.match(state.registry, :subscriptions, :_)
-    |> Enum.each(fn {pid, match} ->
-      is_property_prefix_match?(match, property) and send(pid, message)
+    Registry.dispatch(state.registry, :subscriptions, fn entries ->
+      for {pid, pattern} <- entries,
+          is_property_prefix_match?(pattern, property),
+          do: send(pid, message)
     end)
   end
 
