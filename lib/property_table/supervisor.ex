@@ -7,6 +7,7 @@ defmodule PropertyTable.Supervisor do
     registry_name = registry_name(options.table)
 
     table_options = %{
+      matcher: options.matcher,
       registry: registry_name,
       table: options.table,
       tuple_events: options.tuple_events
@@ -15,8 +16,8 @@ defmodule PropertyTable.Supervisor do
     PropertyTable.Table.create_ets_table(options.table, options.properties)
 
     children = [
-      {PropertyTable.Table, table_options},
-      {Registry, [keys: :duplicate, name: registry_name, partitions: 1]}
+      {Registry, [keys: :duplicate, name: registry_name, partitions: 1]},
+      {PropertyTable.Table, table_options}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

@@ -1,9 +1,8 @@
 defmodule PropertyTable do
   @moduledoc File.read!("README.md")
-             |> String.split("## Usage")
+             |> String.split("<!-- MODULEDOC -->")
              |> Enum.fetch!(1)
 
-  alias PropertyTable.Matcher
   alias PropertyTable.Table
 
   @typedoc """
@@ -14,8 +13,8 @@ defmodule PropertyTable do
   @typedoc """
   Properties
   """
-  @type property() :: [String.t()]
-  @type pattern() :: [String.t() | :_ | :"$"]
+  @type property() :: any()
+  @type pattern() :: any()
   @type value() :: any()
   @type property_value() :: {property(), value()}
 
@@ -45,6 +44,8 @@ defmodule PropertyTable do
 
   * `:properties` - a list of `{property, value}` tuples to initially populate
     the `PropertyTable`
+  * `:matcher` - set the format for how properties and how they should be
+    matched for triggering events. See `PropertyTable.Matcher`.
   * `:tuple_events` - set to `true` for change events to be in the old tuple
     format. This is not recommended for new code and hopefully will be removed
     in the future.
@@ -63,28 +64,31 @@ defmodule PropertyTable do
           raise ArgumentError, "expected :name option to be present"
       end
 
-    properties = Keyword.get(options, :properties, [])
-
-    unless Enum.all?(properties, &property_tuple?/1) do
-      raise ArgumentError,
-            "expected :properties to be a list of property/value tuples, got: #{inspect(properties)}"
-    end
-
     tuple_events = Keyword.get(options, :tuple_events, false)
 
     unless is_boolean(tuple_events) do
       raise ArgumentError, "expected :tuple_events to be boolean, got: #{inspect(tuple_events)}"
     end
 
+    matcher = Keyword.get(options, :matcher, PropertyTable.Matcher.StringPath)
+
+    unless is_atom(matcher) do
+      raise ArgumentError, "expected :matcher to be module, got: #{inspect(matcher)}"
+    end
+
+    properties = Keyword.get(options, :properties, [])
+
+    unless Enum.all?(properties, fn {k, _} -> matcher.check_property(k) == :ok end) do
+      raise ArgumentError,
+            "expected :properties to contain valid properties, got: #{inspect(properties)}"
+    end
+
     Supervisor.start_link(
       __MODULE__.Supervisor,
-      %{table: name, properties: properties, tuple_events: tuple_events},
+      %{table: name, properties: properties, tuple_events: tuple_events, matcher: matcher},
       name: name
     )
   end
-
-  defp property_tuple?({property, _value}) when is_list(property), do: true
-  defp property_tuple?(_), do: false
 
   @doc """
   Returns a specification to start a property_table under a supervisor.
@@ -103,20 +107,25 @@ defmodule PropertyTable do
   Subscribe to receive events
   """
   @spec subscribe(table_id(), pattern()) :: :ok
-  def subscribe(table, pattern) when is_list(pattern) do
-    assert_pattern(pattern)
-
+  def subscribe(table, pattern) do
     registry = PropertyTable.Supervisor.registry_name(table)
-    {:ok, _} = Registry.register(registry, :subscriptions, pattern)
+    {:ok, matcher} = Registry.meta(registry, :matcher)
 
-    :ok
+    case matcher.check_pattern(pattern) do
+      :ok ->
+        {:ok, _} = Registry.register(registry, :subscriptions, pattern)
+        :ok
+
+      {:error, error} ->
+        raise error
+    end
   end
 
   @doc """
   Stop subscribing to a property
   """
   @spec unsubscribe(table_id(), pattern()) :: :ok
-  def unsubscribe(table, pattern) when is_list(pattern) do
+  def unsubscribe(table, pattern) do
     registry = PropertyTable.Supervisor.registry_name(table)
     Registry.unregister_match(registry, :subscriptions, pattern)
   end
@@ -125,8 +134,7 @@ defmodule PropertyTable do
   Get the current value of a property
   """
   @spec get(table_id(), property(), value()) :: value()
-  def get(table, property, default \\ nil) when is_list(property) do
-    assert_property(property)
+  def get(table, property, default \\ nil) do
     Table.get(table, property, default)
   end
 
@@ -136,10 +144,7 @@ defmodule PropertyTable do
   Timestamps come from `System.monotonic_time()`
   """
   @spec fetch_with_timestamp(table_id(), property()) :: {:ok, value(), integer()} | :error
-  def fetch_with_timestamp(table, property) when is_list(property) do
-    assert_property(property)
-    Table.fetch_with_timestamp(table, property)
-  end
+  defdelegate fetch_with_timestamp(table, property), to: Table
 
   @doc """
   Get all properties
@@ -155,16 +160,12 @@ defmodule PropertyTable do
   Get a list of all properties matching the specified property pattern
   """
   @spec match(table_id(), pattern()) :: [{property(), value()}]
-  def match(table, pattern) when is_list(pattern) do
-    assert_pattern(pattern)
-
-    Table.match(table, pattern)
-  end
+  defdelegate match(table, pattern), to: Table
 
   @doc """
   Update a property and notify listeners
   """
-  @spec put(table_id(), property(), value()) :: :ok
+  @spec put(table_id(), property(), value()) :: :ok | {:error, Exception.t()}
   defdelegate put(table, property, value), to: Table
 
   @doc """
@@ -178,18 +179,4 @@ defmodule PropertyTable do
   """
   @spec clear_all(table_id(), pattern()) :: :ok
   defdelegate clear_all(table, pattern), to: Table
-
-  defp assert_property(property) do
-    case Matcher.check_property(property) do
-      :ok -> :ok
-      {:error, exception} -> raise exception
-    end
-  end
-
-  defp assert_pattern(pattern) do
-    case Matcher.check_pattern(pattern) do
-      :ok -> :ok
-      {:error, exception} -> raise exception
-    end
-  end
 end

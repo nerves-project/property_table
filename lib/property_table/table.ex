@@ -3,12 +3,14 @@ defmodule PropertyTable.Table do
   use GenServer
 
   alias PropertyTable.Event
-  alias PropertyTable.Matcher
+
+  require Logger
 
   @type state() :: %{
           table: PropertyTable.table_id(),
           registry: Registry.registry(),
-          tuple_events: boolean()
+          tuple_events: boolean(),
+          matcher: module()
         }
 
   @doc """
@@ -67,13 +69,16 @@ defmodule PropertyTable.Table do
     )
   end
 
-  @spec get_all_with_timestamp(PropertyTable.table_id(), PropertyTable.pattern()) :: [
+  @spec match_with_timestamp(PropertyTable.table_id(), PropertyTable.pattern()) :: [
           {PropertyTable.property(), PropertyTable.value(), integer()}
         ]
-  def get_all_with_timestamp(table, pattern) do
+  def match_with_timestamp(table, pattern) do
+    registry = PropertyTable.Supervisor.registry_name(table)
+    {:ok, matcher} = Registry.meta(registry, :matcher)
+
     :ets.foldl(
       fn {property, value, timestamp}, acc ->
-        if Matcher.match?(pattern, property) do
+        if matcher.matches?(pattern, property) do
           [{property, value, timestamp} | acc]
         else
           acc
@@ -88,9 +93,12 @@ defmodule PropertyTable.Table do
           {PropertyTable.property(), PropertyTable.value()}
         ]
   def match(table, pattern) do
+    registry = PropertyTable.Supervisor.registry_name(table)
+    {:ok, matcher} = Registry.meta(registry, :matcher)
+
     :ets.foldl(
       fn {property, value, _timestamp}, acc ->
-        if Matcher.match?(pattern, property) do
+        if matcher.matches?(pattern, property) do
           [{property, value} | acc]
         else
           acc
@@ -106,13 +114,8 @@ defmodule PropertyTable.Table do
 
   If the property changed, this will send events to all listeners.
   """
-  @spec put(
-          PropertyTable.table_id(),
-          PropertyTable.property(),
-          PropertyTable.value()
-        ) ::
-          :ok
-
+  @spec put(PropertyTable.table_id(), PropertyTable.property(), PropertyTable.value()) ::
+          :ok | {:error, Exception.t()}
   def put(table, property, nil) do
     clear(table, property)
   end
@@ -127,60 +130,64 @@ defmodule PropertyTable.Table do
   If the property changed, this will send events to all listeners.
   """
   @spec clear(PropertyTable.table_id(), PropertyTable.property()) :: :ok
-  def clear(table, property) when is_list(property) do
+  def clear(table, property) do
     GenServer.call(server_name(table), {:clear, property, System.monotonic_time()})
   end
 
   @doc """
   Clear out all of the properties under a prefix
   """
-  @spec clear_all(PropertyTable.table_id(), PropertyTable.pattern()) ::
-          :ok
-  def clear_all(table, pattern) when is_list(pattern) do
+  @spec clear_all(PropertyTable.table_id(), PropertyTable.pattern()) :: :ok
+  def clear_all(table, pattern) do
     GenServer.call(server_name(table), {:clear_all, pattern, System.monotonic_time()})
   end
 
   @impl GenServer
   def init(opts) do
+    Registry.put_meta(opts.registry, :matcher, opts.matcher)
+
     {:ok, opts}
   end
 
   @impl GenServer
   def handle_call({:put, property, value, timestamp}, _from, state) do
-    case :ets.lookup(state.table, property) do
-      [{_property, ^value, _last_change}] ->
-        # No change, so no notifications
-        :ok
+    result =
+      with :ok <- state.matcher.check_property(property) do
+        case :ets.lookup(state.table, property) do
+          [{_property, ^value, _last_change}] ->
+            # No change, so no notifications
+            :ok
 
-      [{_property, previous_value, last_change}] ->
-        event = %Event{
-          table: state.table,
-          property: property,
-          value: value,
-          previous_value: previous_value,
-          timestamp: timestamp,
-          previous_timestamp: last_change
-        }
+          [{_property, previous_value, last_change}] ->
+            event = %Event{
+              table: state.table,
+              property: property,
+              value: value,
+              previous_value: previous_value,
+              timestamp: timestamp,
+              previous_timestamp: last_change
+            }
 
-        :ets.insert(state.table, {property, value, timestamp})
-        dispatch(state, property, event)
+            :ets.insert(state.table, {property, value, timestamp})
+            dispatch(state, property, event)
 
-      [] ->
-        :ets.insert(state.table, {property, value, timestamp})
+          [] ->
+            :ets.insert(state.table, {property, value, timestamp})
 
-        event = %Event{
-          table: state.table,
-          property: property,
-          value: value,
-          previous_value: nil,
-          timestamp: timestamp,
-          previous_timestamp: nil
-        }
+            event = %Event{
+              table: state.table,
+              property: property,
+              value: value,
+              previous_value: nil,
+              timestamp: timestamp,
+              previous_timestamp: nil
+            }
 
-        dispatch(state, property, event)
-    end
+            dispatch(state, property, event)
+        end
+      end
 
-    {:reply, :ok, state}
+    {:reply, result, state}
   end
 
   @impl GenServer
@@ -207,7 +214,7 @@ defmodule PropertyTable.Table do
 
   @impl GenServer
   def handle_call({:clear_all, pattern, timestamp}, _from, state) do
-    to_delete = get_all_with_timestamp(state.table, pattern)
+    to_delete = match_with_timestamp(state.table, pattern)
 
     # Delete everything first and then send notifications so
     # if handlers call "get", they won't see something that
@@ -234,10 +241,11 @@ defmodule PropertyTable.Table do
 
   defp dispatch(state, property, event) do
     message = if state.tuple_events, do: Event.to_tuple(event), else: event
+    matcher = state.matcher
 
     Registry.dispatch(state.registry, :subscriptions, fn entries ->
       for {pid, pattern} <- entries,
-          Matcher.match?(pattern, property),
+          matcher.matches?(pattern, property),
           do: send(pid, message)
     end)
   end

@@ -89,17 +89,6 @@ defmodule PropertyTableTest do
     refute_receive _
   end
 
-  test "getting invalid properties raises", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
-    # Wildcards aren't allowed
-    assert_raise ArgumentError, fn -> PropertyTable.get(table, [:_, "a"]) end
-    assert_raise ArgumentError, fn -> PropertyTable.get(table, [:_]) end
-
-    # Non-string lists aren't allowed
-    assert_raise ArgumentError, fn -> PropertyTable.get(table, ['nope']) end
-    assert_raise ArgumentError, fn -> PropertyTable.get(table, ["a", 5]) end
-  end
-
   test "sending events", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
     property = ["test"]
@@ -342,5 +331,26 @@ defmodule PropertyTableTest do
     PropertyTable.subscribe(table, [])
     PropertyTable.put(table, property, 101)
     assert_receive {^table, ^property, nil, 101, %{old_timestamp: _, new_timestamp: _}}
+  end
+
+  test "rejects bad properties", %{test: table} do
+    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+
+    PropertyTable.subscribe(table, [])
+
+    # Bad property returns error
+    assert {:error, _} = PropertyTable.put(table, [:bad], 90)
+
+    # Doesn't send event
+    refute_receive _
+
+    # Isn't in table
+    assert PropertyTable.get_all(table) == []
+  end
+
+  test "rejects bad subscriptions", %{test: table} do
+    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+
+    assert_raise ArgumentError, fn -> PropertyTable.subscribe(table, :bad) end
   end
 end
