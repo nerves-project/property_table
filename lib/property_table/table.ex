@@ -114,10 +114,12 @@ defmodule PropertyTable.Table do
 
   If the property changed, this will send events to all listeners.
   """
-  @spec put(PropertyTable.table_id(), PropertyTable.property(), PropertyTable.value()) ::
-          :ok | {:error, Exception.t()}
+  @spec put(PropertyTable.table_id(), PropertyTable.property(), PropertyTable.value()) :: :ok
   def put(table, property, value) do
-    GenServer.call(server_name(table), {:put, property, value, System.monotonic_time()})
+    case GenServer.call(server_name(table), {:put, property, value, System.monotonic_time()}) do
+      :ok -> :ok
+      {:error, exception} -> raise exception
+    end
   end
 
   @doc """

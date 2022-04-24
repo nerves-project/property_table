@@ -335,8 +335,8 @@ defmodule PropertyTableTest do
 
     PropertyTable.subscribe(table, [])
 
-    # Bad property returns error
-    assert {:error, _} = PropertyTable.put(table, [:bad], 90)
+    # Bad property raises
+    assert_raise ArgumentError, fn -> PropertyTable.put(table, [:bad], 90) end
 
     # Doesn't send event
     refute_receive _

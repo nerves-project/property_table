@@ -165,7 +165,7 @@ defmodule PropertyTable do
   @doc """
   Update a property and notify listeners
   """
-  @spec put(table_id(), property(), value()) :: :ok | {:error, Exception.t()}
+  @spec put(table_id(), property(), value()) :: :ok
   defdelegate put(table, property, value), to: Table
 
   @doc """
