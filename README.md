@@ -63,7 +63,7 @@ calling `PropertyTable.start_link/1`:
 PropertyTable.start_link(name: NetworkTable)
 ```
 
-Inserting values into the table looks like:
+Inserting properties into the table looks like:
 
 ```elixir
 PropertyTable.put(NetworkTable, ["available_interfaces"], ["eth0", "eth1"])
@@ -71,10 +71,6 @@ PropertyTable.put(NetworkTable, ["connection"], :internet)
 PropertyTable.put(NetworkTable, ["interface", "eth0", "config"], %{ipv4: %{method: :dhcp}})
 PropertyTable.put(NetworkTable, ["interface", "eth0", "connection"], :internet)
 ```
-
-Values can be any Elixir data structure except for `nil`. `nil` is used to
-identify non-existent properties. Therefore, setting a property to `nil` deletes
-the property. You can also call `PropertyTable.clear/2` to delete a property.
 
 Read one property by running:
 

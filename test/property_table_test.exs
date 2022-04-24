@@ -109,15 +109,12 @@ defmodule PropertyTableTest do
     refute_receive _
   end
 
-  test "setting properties to nil clears them", %{test: table} do
+  test "properties can be set to nil", %{test: table} do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
     property = ["test"]
 
-    PropertyTable.put(table, property, 124)
-    assert PropertyTable.get_all(table) == [{property, 124}]
-
     PropertyTable.put(table, property, nil)
-    assert PropertyTable.get_all(table) == []
+    assert PropertyTable.get_all(table) == [{property, nil}]
   end
 
   test "subscribing from one process to multiple patterns", %{test: table} do

@@ -116,10 +116,6 @@ defmodule PropertyTable.Table do
   """
   @spec put(PropertyTable.table_id(), PropertyTable.property(), PropertyTable.value()) ::
           :ok | {:error, Exception.t()}
-  def put(table, property, nil) do
-    clear(table, property)
-  end
-
   def put(table, property, value) do
     GenServer.call(server_name(table), {:put, property, value, System.monotonic_time()})
   end
