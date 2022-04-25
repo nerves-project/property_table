@@ -24,11 +24,11 @@ defmodule PropertyTableTest do
       start_supervised({PropertyTable, properties: [{property1, 1}, {property2, 2}], name: table})
 
     assert PropertyTable.get(table, property1) == 1
-    PropertyTable.clear(table, property1)
+    PropertyTable.delete(table, property1)
     assert PropertyTable.get(table, property1) == nil
 
-    # Redundant clear does nothing
-    PropertyTable.clear(table, property1)
+    # Redundant delete does nothing
+    PropertyTable.delete(table, property1)
 
     assert PropertyTable.get_all(table) == [{property2, 2}]
   end
@@ -100,7 +100,7 @@ defmodule PropertyTableTest do
     PropertyTable.put(table, property, 100)
     assert_receive %Event{table: ^table, property: ^property, value: 100, previous_value: 99}
 
-    PropertyTable.clear(table, property)
+    PropertyTable.delete(table, property)
     assert_receive %Event{table: ^table, property: ^property, value: nil, previous_value: 100}
 
     PropertyTable.unsubscribe(table, property)
@@ -138,13 +138,13 @@ defmodule PropertyTableTest do
     # Check that unsubscribing to one doesn't stop notifications to the other
     PropertyTable.unsubscribe(table, property1)
 
-    PropertyTable.clear(table, property1)
+    PropertyTable.delete(table, property1)
     refute_receive _
     PropertyTable.put(table, property2, 102)
     assert_receive %Event{table: ^table, property: ^property2, value: 102, previous_value: 100}
 
     PropertyTable.unsubscribe(table, property2)
-    PropertyTable.clear(table, property2)
+    PropertyTable.delete(table, property2)
     refute_receive _
   end
 
@@ -239,7 +239,7 @@ defmodule PropertyTableTest do
     PropertyTable.put(table, ["a", "b", "e"], 3)
     PropertyTable.put(table, ["f", "g"], 4)
 
-    PropertyTable.clear_all(table, ["a"])
+    PropertyTable.delete_matches(table, ["a"])
     assert PropertyTable.get_all(table) == [{["f", "g"], 4}]
   end
 

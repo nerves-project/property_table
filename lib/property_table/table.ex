@@ -123,21 +123,19 @@ defmodule PropertyTable.Table do
   end
 
   @doc """
-  Clear a property
-
-  If the property changed, this will send events to all listeners.
+  Delete a property
   """
-  @spec clear(PropertyTable.table_id(), PropertyTable.property()) :: :ok
-  def clear(table, property) do
-    GenServer.call(server_name(table), {:clear, property, System.monotonic_time()})
+  @spec delete(PropertyTable.table_id(), PropertyTable.property()) :: :ok
+  def delete(table, property) do
+    GenServer.call(server_name(table), {:delete, property, System.monotonic_time()})
   end
 
   @doc """
-  Clear out all of the properties under a prefix
+  Delete every property that matches the pattern
   """
-  @spec clear_all(PropertyTable.table_id(), PropertyTable.pattern()) :: :ok
-  def clear_all(table, pattern) do
-    GenServer.call(server_name(table), {:clear_all, pattern, System.monotonic_time()})
+  @spec delete_matches(PropertyTable.table_id(), PropertyTable.pattern()) :: :ok
+  def delete_matches(table, pattern) do
+    GenServer.call(server_name(table), {:delete_matches, pattern, System.monotonic_time()})
   end
 
   @impl GenServer
@@ -189,7 +187,7 @@ defmodule PropertyTable.Table do
   end
 
   @impl GenServer
-  def handle_call({:clear, property, timestamp}, _from, state) do
+  def handle_call({:delete, property, timestamp}, _from, state) do
     case :ets.take(state.table, property) do
       [{_property, previous_value, last_change}] ->
         event = %Event{
@@ -211,7 +209,7 @@ defmodule PropertyTable.Table do
   end
 
   @impl GenServer
-  def handle_call({:clear_all, pattern, timestamp}, _from, state) do
+  def handle_call({:delete_matches, pattern, timestamp}, _from, state) do
     to_delete = match_with_timestamp(state.table, pattern)
 
     # Delete everything first and then send notifications so

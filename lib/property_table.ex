@@ -171,12 +171,12 @@ defmodule PropertyTable do
   @doc """
   Delete the specified property
   """
-  @spec clear(table_id(), property()) :: :ok
-  defdelegate clear(table, property), to: Table
+  @spec delete(table_id(), property()) :: :ok
+  defdelegate delete(table, property), to: Table
 
   @doc """
-  Clear out all properties that match a pattern
+  Delete all properties that match a pattern
   """
-  @spec clear_all(table_id(), pattern()) :: :ok
-  defdelegate clear_all(table, pattern), to: Table
+  @spec delete_matches(table_id(), pattern()) :: :ok
+  defdelegate delete_matches(table, pattern), to: Table
 end
