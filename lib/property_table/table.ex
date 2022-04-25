@@ -123,6 +123,25 @@ defmodule PropertyTable.Table do
   end
 
   @doc """
+  Update many properties
+
+  This is similar to calling `put/3` several times in a row, but atomically. It is
+  also slightly more efficient when updating more than one property.
+  """
+  @spec put_many(PropertyTable.table_id(), [{PropertyTable.property(), PropertyTable.value()}]) ::
+          :ok
+  def put_many(table, properties) when is_list(properties) do
+    timestamp = System.monotonic_time()
+
+    timestamped_properties = for {property, value} <- properties, do: {property, value, timestamp}
+
+    case GenServer.call(server_name(table), {:put_many, timestamped_properties}) do
+      :ok -> :ok
+      {:error, exception} -> raise exception
+    end
+  end
+
+  @doc """
   Delete a property
   """
   @spec delete(PropertyTable.table_id(), PropertyTable.property()) :: :ok
@@ -165,7 +184,7 @@ defmodule PropertyTable.Table do
             }
 
             :ets.insert(state.table, {property, value, timestamp})
-            dispatch(state, property, event)
+            dispatch(state, event)
 
           [] ->
             :ets.insert(state.table, {property, value, timestamp})
@@ -179,8 +198,21 @@ defmodule PropertyTable.Table do
               previous_timestamp: nil
             }
 
-            dispatch(state, property, event)
+            dispatch(state, event)
         end
+      end
+
+    {:reply, result, state}
+  end
+
+  def handle_call({:put_many, timestamped_properties}, _from, state) do
+    unique_props = trim_duplicate_puts(timestamped_properties)
+
+    result =
+      with :ok <- check_properties(unique_props, state.matcher) do
+        {props, events} = compute_events(unique_props, state, {[], []})
+        :ets.insert(state.table, props)
+        Enum.each(events, &dispatch(state, &1))
       end
 
     {:reply, result, state}
@@ -199,7 +231,7 @@ defmodule PropertyTable.Table do
           previous_timestamp: last_change
         }
 
-        dispatch(state, property, event)
+        dispatch(state, event)
 
       [] ->
         :ok
@@ -229,15 +261,16 @@ defmodule PropertyTable.Table do
         previous_timestamp: previous_timestamp
       }
 
-      dispatch(state, property, event)
+      dispatch(state, event)
     end)
 
     {:reply, :ok, state}
   end
 
-  defp dispatch(state, property, event) do
+  defp dispatch(state, event) do
     message = if state.tuple_events, do: Event.to_tuple(event), else: event
     matcher = state.matcher
+    property = event.property
 
     Registry.dispatch(state.registry, :subscriptions, fn entries ->
       for {pid, pattern} <- entries,
@@ -245,4 +278,65 @@ defmodule PropertyTable.Table do
           do: send(pid, message)
     end)
   end
+
+  defp trim_duplicate_puts(properties) do
+    # Keep the last value - no transients
+    properties
+    |> Enum.reverse()
+    |> Enum.uniq_by(fn {property, _, _} -> property end)
+  end
+
+  defp check_properties([{property, _, _} | rest], matcher) do
+    case matcher.check_property(property) do
+      :ok -> check_properties(rest, matcher)
+      result -> result
+    end
+  end
+
+  defp check_properties([], _matcher), do: :ok
+
+  defp check_properties([other | _], _matcher) do
+    {:error, ArgumentError.exception("Expected list of tuples. Got #{inspect(other)}")}
+  end
+
+  defp compute_events([{property, value, timestamp} = prop | rest], state, {props, events} = acc) do
+    new_acc =
+      case :ets.lookup(state.table, property) do
+        [{_property, ^value, _last_change}] ->
+          # No change; no notifications
+          acc
+
+        [{_property, previous_value, last_change}] ->
+          {[prop | props],
+           [
+             %Event{
+               table: state.table,
+               property: property,
+               value: value,
+               previous_value: previous_value,
+               timestamp: timestamp,
+               previous_timestamp: last_change
+             }
+             | events
+           ]}
+
+        [] ->
+          {[prop | props],
+           [
+             %Event{
+               table: state.table,
+               property: property,
+               value: value,
+               previous_value: nil,
+               timestamp: timestamp,
+               previous_timestamp: nil
+             }
+             | events
+           ]}
+      end
+
+    compute_events(rest, state, new_acc)
+  end
+
+  defp compute_events([], _state, acc), do: acc
 end

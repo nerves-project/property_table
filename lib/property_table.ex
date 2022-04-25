@@ -169,6 +169,15 @@ defmodule PropertyTable do
   defdelegate put(table, property, value), to: Table
 
   @doc """
+  Update many properties
+
+  This is similar to calling `put/3` several times in a row, but atomically. It is
+  also slightly more efficient when updating more than one property.
+  """
+  @spec put_many(table_id(), [{property(), value()}]) :: :ok
+  defdelegate put_many(table, properties), to: Table
+
+  @doc """
   Delete the specified property
   """
   @spec delete(table_id(), property()) :: :ok

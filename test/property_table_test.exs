@@ -350,4 +350,59 @@ defmodule PropertyTableTest do
 
     assert_raise ArgumentError, fn -> PropertyTable.subscribe(table, :bad) end
   end
+
+  test "put_many can put many", %{test: table} do
+    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    property1 = ["test", "a", "b"]
+    property2 = ["test", "a", "c"]
+    property3 = ["test", "a", "d"]
+
+    PropertyTable.subscribe(table, ["test"])
+    PropertyTable.put_many(table, [{property1, 1}, {property2, 2}, {property3, 3}])
+    assert_receive %Event{table: ^table, property: ^property1, value: 1}
+    assert_receive %Event{table: ^table, property: ^property2, value: 2}
+    assert_receive %Event{table: ^table, property: ^property3, value: 3}
+    refute_receive _
+
+    assert PropertyTable.get(table, property1) == 1
+    assert PropertyTable.get(table, property2) == 2
+    assert PropertyTable.get(table, property3) == 3
+  end
+
+  test "put_many is all or none", %{test: table} do
+    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    property1 = ["test", "a", "b"]
+    property2 = ["test", :oops]
+
+    PropertyTable.subscribe(table, ["test"])
+
+    assert_raise ArgumentError, fn ->
+      PropertyTable.put_many(table, [{property1, 1}, {property2, 2}])
+    end
+
+    # Since property2 was an invalid property, property1 shouldn't have
+    # been set and no events should have been received.
+    refute_receive _
+    assert PropertyTable.get(table, property1) == nil
+  end
+
+  test "put_many removes duplicate sets", %{test: table} do
+    property1 = ["test", "a", "b"]
+    property2 = ["test", "a", "c"]
+
+    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+
+    PropertyTable.subscribe(table, ["test"])
+
+    PropertyTable.put_many(table, [{property1, 1}, {property2, 5}, {property1, 2}, {property1, 3}])
+
+    assert_receive %Event{table: ^table, property: ^property1, value: 3}
+    assert_receive %Event{table: ^table, property: ^property2, value: 5}
+
+    refute_receive _
+
+    # Try again with a fully redundant set of properties
+    PropertyTable.put_many(table, [{property1, 3}, {property2, 5}])
+    refute_receive _
+  end
 end
