@@ -1,4 +1,8 @@
-defmodule PropertyTable.Table do
+defmodule PropertyTable.Updater do
+  # GenServer that's responsible for updating the ETS table that stores all
+  # properties. All writes to the table are routed through here.  Table reads
+  # can happen other places.
+
   @moduledoc false
   use GenServer
 
@@ -16,7 +20,7 @@ defmodule PropertyTable.Table do
   @doc """
   Create the ETS table that holds all of the properties
 
-  This is done outside of the Table GenServer so that the Table GenServer can
+  This is done outside of the Updater GenServer so that the Updater GenServer can
   crash and recover without losing state.
   """
   @spec create_ets_table(PropertyTable.table_id(), [PropertyTable.property_value()]) :: :ok
@@ -34,79 +38,12 @@ defmodule PropertyTable.Table do
   @doc false
   @spec server_name(PropertyTable.table_id()) :: atom
   def server_name(name) do
-    Module.concat(name, Table)
+    Module.concat(name, Updater)
   end
 
   @spec start_link(state()) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: server_name(opts.table))
-  end
-
-  @spec get(PropertyTable.table_id(), PropertyTable.property(), PropertyTable.value()) ::
-          PropertyTable.value()
-  def get(table, property, default) do
-    case :ets.lookup(table, property) do
-      [{_property, value, _timestamp}] -> value
-      [] -> default
-    end
-  end
-
-  @spec fetch_with_timestamp(PropertyTable.table_id(), PropertyTable.property()) ::
-          {:ok, PropertyTable.value(), integer()} | :error
-  def fetch_with_timestamp(table, property) do
-    case :ets.lookup(table, property) do
-      [{_property, value, timestamp}] -> {:ok, value, timestamp}
-      [] -> :error
-    end
-  end
-
-  @spec get_all(PropertyTable.table_id()) :: [{PropertyTable.property(), PropertyTable.value()}]
-  def get_all(table) do
-    :ets.foldl(
-      fn {property, value, _timestamp}, acc -> [{property, value} | acc] end,
-      [],
-      table
-    )
-  end
-
-  @spec match_with_timestamp(PropertyTable.table_id(), PropertyTable.pattern()) :: [
-          {PropertyTable.property(), PropertyTable.value(), integer()}
-        ]
-  def match_with_timestamp(table, pattern) do
-    registry = PropertyTable.Supervisor.registry_name(table)
-    {:ok, matcher} = Registry.meta(registry, :matcher)
-
-    :ets.foldl(
-      fn {property, value, timestamp}, acc ->
-        if matcher.matches?(pattern, property) do
-          [{property, value, timestamp} | acc]
-        else
-          acc
-        end
-      end,
-      [],
-      table
-    )
-  end
-
-  @spec match(PropertyTable.table_id(), PropertyTable.pattern()) :: [
-          {PropertyTable.property(), PropertyTable.value()}
-        ]
-  def match(table, pattern) do
-    registry = PropertyTable.Supervisor.registry_name(table)
-    {:ok, matcher} = Registry.meta(registry, :matcher)
-
-    :ets.foldl(
-      fn {property, value, _timestamp}, acc ->
-        if matcher.matches?(pattern, property) do
-          [{property, value} | acc]
-        else
-          acc
-        end
-      end,
-      [],
-      table
-    )
   end
 
   @doc """
@@ -242,7 +179,7 @@ defmodule PropertyTable.Table do
 
   @impl GenServer
   def handle_call({:delete_matches, pattern, timestamp}, _from, state) do
-    to_delete = match_with_timestamp(state.table, pattern)
+    to_delete = match_with_timestamp(state.table, state.matcher, pattern)
 
     # Delete everything first and then send notifications so
     # if handlers call "get", they won't see something that
@@ -265,6 +202,20 @@ defmodule PropertyTable.Table do
     end)
 
     {:reply, :ok, state}
+  end
+
+  defp match_with_timestamp(table, matcher, pattern) do
+    :ets.foldl(
+      fn {property, value, timestamp}, acc ->
+        if matcher.matches?(pattern, property) do
+          [{property, value, timestamp} | acc]
+        else
+          acc
+        end
+      end,
+      [],
+      table
+    )
   end
 
   defp dispatch(state, event) do

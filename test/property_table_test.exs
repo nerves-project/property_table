@@ -53,7 +53,7 @@ defmodule PropertyTableTest do
     # Crash the table. Due to async process crash and recovery if there isn't a
     # sleep here, the asserts can run before the crash and pass without testing
     # recovery.
-    table_genserver = PropertyTable.Table.server_name(table)
+    table_genserver = PropertyTable.Updater.server_name(table)
     Process.exit(Process.whereis(table_genserver), :oops)
     Process.sleep(10)
 

@@ -13,11 +13,11 @@ defmodule PropertyTable.Supervisor do
       tuple_events: options.tuple_events
     }
 
-    PropertyTable.Table.create_ets_table(options.table, options.properties)
+    PropertyTable.Updater.create_ets_table(options.table, options.properties)
 
     children = [
       {Registry, [keys: :duplicate, name: registry_name, partitions: 1]},
-      {PropertyTable.Table, table_options}
+      {PropertyTable.Updater, table_options}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
