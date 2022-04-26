@@ -3,7 +3,7 @@ defmodule PropertyTable do
              |> String.split("<!-- MODULEDOC -->")
              |> Enum.fetch!(1)
 
-  alias PropertyTable.Table
+  alias PropertyTable.Updater
 
   @typedoc """
   A table_id identifies a group of properties
@@ -135,7 +135,10 @@ defmodule PropertyTable do
   """
   @spec get(table_id(), property(), value()) :: value()
   def get(table, property, default \\ nil) do
-    Table.get(table, property, default)
+    case :ets.lookup(table, property) do
+      [{_property, value, _timestamp}] -> value
+      [] -> default
+    end
   end
 
   @doc """
@@ -144,7 +147,12 @@ defmodule PropertyTable do
   Timestamps come from `System.monotonic_time()`
   """
   @spec fetch_with_timestamp(table_id(), property()) :: {:ok, value(), integer()} | :error
-  defdelegate fetch_with_timestamp(table, property), to: Table
+  def fetch_with_timestamp(table, property) do
+    case :ets.lookup(table, property) do
+      [{_property, value, timestamp}] -> {:ok, value, timestamp}
+      [] -> :error
+    end
+  end
 
   @doc """
   Get all properties
@@ -154,19 +162,40 @@ defmodule PropertyTable do
   properties.
   """
   @spec get_all(table_id()) :: [{property(), value()}]
-  defdelegate get_all(table), to: Table
+  def get_all(table) do
+    :ets.foldl(
+      fn {property, value, _timestamp}, acc -> [{property, value} | acc] end,
+      [],
+      table
+    )
+  end
 
   @doc """
   Get a list of all properties matching the specified property pattern
   """
   @spec match(table_id(), pattern()) :: [{property(), value()}]
-  defdelegate match(table, pattern), to: Table
+  def match(table, pattern) do
+    registry = PropertyTable.Supervisor.registry_name(table)
+    {:ok, matcher} = Registry.meta(registry, :matcher)
+
+    :ets.foldl(
+      fn {property, value, _timestamp}, acc ->
+        if matcher.matches?(pattern, property) do
+          [{property, value} | acc]
+        else
+          acc
+        end
+      end,
+      [],
+      table
+    )
+  end
 
   @doc """
   Update a property and notify listeners
   """
   @spec put(table_id(), property(), value()) :: :ok
-  defdelegate put(table, property, value), to: Table
+  defdelegate put(table, property, value), to: Updater
 
   @doc """
   Update many properties
@@ -175,17 +204,17 @@ defmodule PropertyTable do
   also slightly more efficient when updating more than one property.
   """
   @spec put_many(table_id(), [{property(), value()}]) :: :ok
-  defdelegate put_many(table, properties), to: Table
+  defdelegate put_many(table, properties), to: Updater
 
   @doc """
   Delete the specified property
   """
   @spec delete(table_id(), property()) :: :ok
-  defdelegate delete(table, property), to: Table
+  defdelegate delete(table, property), to: Updater
 
   @doc """
   Delete all properties that match a pattern
   """
   @spec delete_matches(table_id(), pattern()) :: :ok
-  defdelegate delete_matches(table, pattern), to: Table
+  defdelegate delete_matches(table, pattern), to: Updater
 end
