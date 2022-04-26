@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.2.0
+
+* Backwards incompatible changes
+  * `nil` no longer deletes a property from the table. In other words, it's ok to
+    for properties to be `nil` now.
+  * `PropertyTable.clear/2` and `PropertyTable.clear_all/2` were renamed to
+    `PropertyTable.delete/2` and `PropertyTable.delete_matches/2` respectively.
+  * `PropertyTable.put/3` raises if you give it an invalid property rather than
+    returning an error tuple. Since these are usually programming errors anyway,
+    this change removes the need for a return value check for Dialyzer.
+
+* New features
+  * Added `PropertyTable.put_many/2`. It's possible to add many properties to
+    the table atomically. Change notifications still only get sent for
+    properties that really changed.
+
 ## v0.1.0
 
 Initial release
