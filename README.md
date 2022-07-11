@@ -1,6 +1,6 @@
 # PropertyTable
 
-[![CircleCI](https://circleci.com/gh/jjcarstens/property_table.svg?style=svg)](https://circleci.com/gh/jjcarstens/property_table)
+[![CircleCI](https://circleci.com/gh/nerves-project/property_table.svg?style=svg)](https://circleci.com/gh/nerves-project/property_table)
 [![Hex version](https://img.shields.io/hexpm/v/property_table.svg "Hex version")](https://hex.pm/packages/property_table)
 
 <!-- MODULEDOC -->
