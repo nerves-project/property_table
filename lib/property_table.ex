@@ -49,6 +49,18 @@ defmodule PropertyTable do
   * `:tuple_events` - set to `true` for change events to be in the old tuple
     format. This is not recommended for new code and hopefully will be removed
     in the future.
+
+  Persistent options:
+
+  You MUST set at least `:persist_data_path` for any of the other options to be respected!
+
+  * `:persist_data_path` - set to a directory where PropertyTable will
+    persist the contents of the table to disk, snapshots will also be stored here.
+  * `:persist_interval` - if set PropertyTable will persist the contents of
+    tables to disk in intervals of the provided value (in milliseconds) automatically.
+    it is saved to disk. This is useful for keeping track of "versions" of the property layouts.
+  * `:persist_max_snapshots` - Maximum number of manual snapshots to keep on disk before they
+    are replaced - (oldest snapshots are replaced first.)
   """
   @spec start_link([option()]) :: Supervisor.on_start()
   def start_link(options) do
@@ -83,9 +95,17 @@ defmodule PropertyTable do
             "expected :properties to contain valid properties, got: #{inspect(properties)}"
     end
 
+    persistence_options = maybe_get_persistence_options(options)
+
     Supervisor.start_link(
       __MODULE__.Supervisor,
-      %{table: name, properties: properties, tuple_events: tuple_events, matcher: matcher},
+      %{
+        table: name,
+        properties: properties,
+        tuple_events: tuple_events,
+        matcher: matcher,
+        persistence_options: persistence_options
+      },
       name: name
     )
   end
@@ -217,4 +237,52 @@ defmodule PropertyTable do
   """
   @spec delete_matches(table_id(), pattern()) :: :ok
   defdelegate delete_matches(table, pattern), to: Updater
+
+  @doc """
+  If persistence is enabled for this property table, save the current state
+  and copy a snapshot of it into the `/snapshots` sub-directory of the set
+  data directory.
+  """
+  @spec snapshot(table_id()) :: {:ok, String.t()} | :noop
+  defdelegate snapshot(table), to: Updater
+
+  @doc """
+  If persistence is enabled for this property table, save the current state
+  to disk immediately.
+  """
+  @spec flush_to_disk(table_id()) :: :ok
+  defdelegate flush_to_disk(table), to: Updater
+
+  @doc """
+  Returns a list of availiable snapshot IDs and full name tuples for
+  a property table with persistence enable
+  """
+  @spec get_snapshots(table_id()) :: [{String.t(), String.t()}]
+  defdelegate get_snapshots(table), to: Updater
+
+  @doc """
+  If persistence is enabled for this property table, restore the current state of the
+  PropertyTable to that of a past named snapshot
+  """
+  @spec restore_snapshot(table_id(), String.t()) :: :ok | :noop
+  defdelegate restore_snapshot(table, snapshot_name), to: Updater
+
+  defp maybe_get_persistence_options(options) do
+    if Keyword.has_key?(options, :persist_data_path) do
+      table_name = Keyword.get(options, :name) |> Atom.to_string()
+
+      # Set persistence options, and clean out any nil values, they will be filled with defaults in `PropertyTable.Persist`
+      [
+        data_directory: Keyword.get(options, :persist_data_path),
+        table_name: table_name,
+        interval: Keyword.get(options, :persist_interval),
+        max_snapshots: Keyword.get(options, :persist_max_snapshots)
+      ]
+      |> Enum.filter(fn {_, v} -> v != nil end)
+    else
+      # :persist_data_path must be set for any of the other options to be respected
+      # no persistence will be configured
+      nil
+    end
+  end
 end
