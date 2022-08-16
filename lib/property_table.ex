@@ -271,7 +271,8 @@ defmodule PropertyTable do
     if Keyword.has_key?(options, :persist_data_path) do
       table_name = Keyword.get(options, :name) |> Atom.to_string()
 
-      # Set persistence options, and clean out any nil values, they will be filled with defaults in `PropertyTable.Persist`
+      # Set persistence options, and clean out any nil values
+      # they will be filled with defaults in `PropertyTable.Persist`
       [
         data_directory: Keyword.get(options, :persist_data_path),
         table_name: table_name,
