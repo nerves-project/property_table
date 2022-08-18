@@ -95,7 +95,7 @@ defmodule PropertyTablePersistTest do
     assert PropertyTable.get(table, ["property", "test", "a"]) == :original_value
   end
 
-  test "Calling and of the persistent/snapshot methods on a non-persistent table will simply noop",
+  test "Calling the persistent/snapshot methods on a non-persistent table will simply noop",
        %{
          table_name: table
        } do
