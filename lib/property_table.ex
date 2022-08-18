@@ -58,7 +58,6 @@ defmodule PropertyTable do
     persist the contents of the table to disk, snapshots will also be stored here.
   * `:persist_interval` - if set PropertyTable will persist the contents of
     tables to disk in intervals of the provided value (in milliseconds) automatically.
-    it is saved to disk. This is useful for keeping track of "versions" of the property layouts.
   * `:persist_max_snapshots` - Maximum number of manual snapshots to keep on disk before they
     are replaced - (oldest snapshots are replaced first.)
   """

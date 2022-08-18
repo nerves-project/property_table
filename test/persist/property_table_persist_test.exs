@@ -1,7 +1,9 @@
 defmodule PropertyTablePersistTest do
   use ExUnit.Case
 
-  @moduletag :capture_log
+  # @moduletag :capture_log
+
+  @corrupted_table_test_name CorruptTableTest
 
   setup do
     table_name = :crypto.strong_rand_bytes(8) |> Base.encode16()
@@ -100,5 +102,32 @@ defmodule PropertyTablePersistTest do
     {:ok, _pid} = start_supervised({PropertyTable, name: table})
     assert PropertyTable.snapshot(table) == :noop
     assert PropertyTable.restore_snapshot(table, "some_id") == :noop
+  end
+
+  test "PropertyTable should restore a backup file if present" do
+    table = @corrupted_table_test_name
+    persist_path = System.tmp_dir!()
+
+    {:ok, pid} = PropertyTable.start_link(name: table, persist_data_path: persist_path)
+
+    # set initial property then snapshot
+    PropertyTable.put(table, ["test"], :test_value)
+    PropertyTable.flush_to_disk(table)
+
+    Process.exit(pid, :normal)
+
+    stable_path = Path.join(persist_path, ["#{table}", "/prop_table.db"])
+    backup_path = Path.join(persist_path, ["#{table}", "/prop_table.db.backup"])
+
+    File.copy!(stable_path, backup_path)
+
+    # "corrupt" the stable file with some random bytes
+    random_content = :crypto.strong_rand_bytes(64)
+    File.write!(stable_path, random_content, [:binary])
+
+    # Reboot the table, it should restore the backup file
+    {:ok, pid} = start_supervised({PropertyTable, name: table, persist_data_path: persist_path})
+
+    assert PropertyTable.get(table, ["test"]) == :test_value
   end
 end

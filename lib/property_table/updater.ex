@@ -157,7 +157,7 @@ defmodule PropertyTable.Updater do
   """
   @spec flush_to_disk(PropertyTable.table_id()) :: :ok
   def flush_to_disk(table) do
-    send(server_name(table), :persist)
+    GenServer.call(server_name(table), :persist)
     :ok
   end
 
@@ -311,9 +311,9 @@ defmodule PropertyTable.Updater do
   end
 
   @impl GenServer
-  def handle_info(:persist, state) do
+  def handle_call(:persist, _from, state) do
     Persist.persist_to_disk(state.table, state.persistence_options)
-    {:noreply, state}
+    {:reply, :ok, state}
   end
 
   defp match_with_timestamp(table, matcher, pattern) do
