@@ -45,13 +45,13 @@ defmodule PropertyTable.Persist do
       File.rename!(stable_path, backup_path)
 
       Logger.debug("Writing PropertyTable to #{stable_path}")
-      :ets.tab2file(table, stable_path |> to_charlist())
+      :ok = :ets.tab2file(table, stable_path |> to_charlist())
 
       Logger.debug("Deleting backup file")
       File.rm!(backup_path)
     else
       Logger.debug("Writing PropertyTable to #{stable_path}")
-      :ets.tab2file(table, stable_path |> to_charlist())
+      :ok = :ets.tab2file(table, stable_path |> to_charlist())
     end
 
     :ok
@@ -88,7 +88,7 @@ defmodule PropertyTable.Persist do
     end
   end
 
-  @spec save_snapshot(reference() | atom(), Keyword.t()) :: :ok | no_return()
+  @spec save_snapshot(reference() | atom(), Keyword.t()) :: {:ok, String.t()} | no_return()
   def save_snapshot(table, options) do
     options = take_options(options)
     persist_to_disk(table, options)
@@ -108,7 +108,7 @@ defmodule PropertyTable.Persist do
     {:ok, snapshot_id}
   end
 
-  @spec restore_snapshot(Keyword.t(), String.t()) :: :ok | no_return()
+  @spec restore_snapshot(Keyword.t(), String.t()) :: :ok | {:error, :enoent} | no_return()
   def restore_snapshot(options, snapshot_id) do
     options = take_options(options)
     stable_path = get_path(:stable, options)

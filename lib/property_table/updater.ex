@@ -165,7 +165,7 @@ defmodule PropertyTable.Updater do
   def init(opts) do
     Registry.put_meta(opts.registry, :matcher, opts.matcher)
 
-    maybe_setup_persistence(opts.persistence_options)
+    :ok = maybe_setup_persistence(opts.persistence_options)
 
     {:ok, opts}
   end
@@ -407,7 +407,12 @@ defmodule PropertyTable.Updater do
 
   defp maybe_setup_persistence(options) when is_list(options) do
     if Keyword.has_key?(options, :interval) do
-      :timer.send_interval(options[:interval], :persist)
+      case :timer.send_interval(options[:interval], :persist) do
+        {:error, reason} -> raise "Failed to start persist timer: #{reason}"
+        _ -> :ok
+      end
     end
+
+    :ok
   end
 end
