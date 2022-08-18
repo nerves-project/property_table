@@ -93,7 +93,11 @@ defmodule PropertyTable.Persist do
     options = take_options(options)
     persist_to_disk(table, options)
 
-    snapshot_id = :crypto.strong_rand_bytes(8) |> Base.encode16()
+    snapshot_id =
+      :ets.tab2list(table)
+      |> :erlang.phash2()
+      |> to_string()
+
     timestamp = DateTime.utc_now() |> to_string()
     full_snapshot_name = "#{timestamp}_#{snapshot_id}"
     stable_path = get_path(:stable, options)
