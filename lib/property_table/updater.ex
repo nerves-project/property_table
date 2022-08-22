@@ -316,6 +316,12 @@ defmodule PropertyTable.Updater do
     {:reply, :ok, state}
   end
 
+  @impl GenServer
+  def handle_info(:persist, state) do
+    Persist.persist_to_disk(state.table, state.persistence_options)
+    {:noreply, state}
+  end
+
   defp match_with_timestamp(table, matcher, pattern) do
     :ets.foldl(
       fn {property, value, timestamp}, acc ->
