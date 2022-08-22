@@ -44,10 +44,14 @@ defmodule PropertyTable.Persist do
       File.rename!(stable_path, backup_path)
 
       Logger.debug("Writing PropertyTable to #{stable_path}")
-      :ok = :ets.tab2file(table, stable_path |> to_charlist(), extended_info: [:md5sum])
+
+      :ok =
+        :ets.tab2file(table, stable_path |> to_charlist(), extended_info: [:md5sum], sync: true)
     else
       Logger.debug("Writing PropertyTable to #{stable_path}")
-      :ok = :ets.tab2file(table, stable_path |> to_charlist(), extended_info: [:md5sum])
+
+      :ok =
+        :ets.tab2file(table, stable_path |> to_charlist(), extended_info: [:md5sum], sync: true)
     end
 
     :ok
