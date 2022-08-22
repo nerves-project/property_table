@@ -1,7 +1,7 @@
 defmodule PropertyTablePersistTest do
   use ExUnit.Case
 
-  # @moduletag :capture_log
+  @moduletag :capture_log
 
   @corrupted_table_test_name CorruptTableTest
 
@@ -104,7 +104,7 @@ defmodule PropertyTablePersistTest do
     assert PropertyTable.restore_snapshot(table, "some_id") == :noop
   end
 
-  test "PropertyTable should restore a backup file if present" do
+  test "PropertyTable should restore a backup file if the stable file is corrupted" do
     table = @corrupted_table_test_name
     persist_path = System.tmp_dir!()
 
