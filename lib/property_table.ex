@@ -52,7 +52,8 @@ defmodule PropertyTable do
 
   Persistent options:
 
-  You MUST set at least `:persist_data_path` for any of the other options to be respected!
+  * You MUST set at least `:persist_data_path` for any of the other options to be respected!
+  * If the table can restore its data from disk, it will IGNORE your initial `:properties` value.
 
   * `:persist_data_path` - set to a directory where PropertyTable will
     persist the contents of the table to disk, snapshots will also be stored here.
