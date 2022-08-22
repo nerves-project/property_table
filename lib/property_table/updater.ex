@@ -49,22 +49,16 @@ defmodule PropertyTable.Updater do
 
     case Persist.restore_from_disk(persistence_options) do
       {:ok, table} ->
-        # Insert the initial properties
-        timestamp = System.monotonic_time()
-
-        Enum.each(initial_properties, fn {property, value} ->
-          :ets.insert(table, {property, value, timestamp})
-        end)
-
         restored_table_name = :ets.info(table)[:name]
 
+        # Ensure the table loaded from the file will match the table we query later
+        # if for some odd reason the table got renamed...
         if table_name != restored_table_name do
-          # This rename ensures the table loaded from the file will match the table we query later
           :ets.rename(table, table_name)
         end
 
-      # If there is no file to restore from just create a new table
-      {:error, :enoent} ->
+      # If there is no good file to restore from just create a new table
+      {:error, _reason} ->
         create_ets_table(table_name, initial_properties)
     end
   end

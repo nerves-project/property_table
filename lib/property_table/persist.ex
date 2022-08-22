@@ -10,10 +10,9 @@ defmodule PropertyTable.Persist do
 
   When you wish to restore a property table from disk, the following will occur:
 
-  1. If a `prop_table.db.backup` exists in the data directory, it means we failed to write to disk in the past (possibly due to a power failure or app crash)
-    1a. Delete the `prop_table.db` file as it's probably corrupted
-    1b. Move `prop_table.db.backup` back to `prop_table.db`
-  2. Restore the table from `prop_table.db`
+  1. The stable file will be verified, if it validates, it will be loaded
+  2. If the stable file failed to validate or did not exist, try and load from the last backup file
+  3. If the backup file fails, log loudly about data loss
 
   You can also manually request "snapshots" of the property table, this will immediately do the procedure for persisting to disk above, then a duplicate of the
   current `prop_table.db` file will be copied into the `snapshots/` directory with a timestamp added to the file name. `max_snapshots` in the options keyword list can be used
@@ -45,13 +44,10 @@ defmodule PropertyTable.Persist do
       File.rename!(stable_path, backup_path)
 
       Logger.debug("Writing PropertyTable to #{stable_path}")
-      :ok = :ets.tab2file(table, stable_path |> to_charlist())
-
-      Logger.debug("Deleting backup file")
-      File.rm!(backup_path)
+      :ok = :ets.tab2file(table, stable_path |> to_charlist(), extended_info: [:md5sum])
     else
       Logger.debug("Writing PropertyTable to #{stable_path}")
-      :ok = :ets.tab2file(table, stable_path |> to_charlist())
+      :ok = :ets.tab2file(table, stable_path |> to_charlist(), extended_info: [:md5sum])
     end
 
     :ok
@@ -64,27 +60,23 @@ defmodule PropertyTable.Persist do
     stable_path = get_path(:stable, options)
     backup_path = get_path(:backup, options)
 
-    # Check if a backup file still exists, if so we may have been interrupted during our last write operation
-    # restore from that file instead by moving it to the stable path
-    if File.exists?(backup_path) do
-      Logger.warn(
-        "Found a backup PropertyTable path: #{backup_path}, this may indicate that the table was not written to disk fully last time!"
-      )
+    # Reduce over all the possible paths we want to try and restore from
+    attempts = [stable_path, backup_path]
 
-      Logger.warn(
-        "\tWe will restore this table from the backup file, but there may be data lost since the last write to disk!"
-      )
+    result = Enum.reduce_while(attempts, {:error, :failed_to_load}, fn path, _ ->
+      if File.exists?(path) do
+        try_restore_tabfile(path)
+      else
+        Logger.warn("File #{path} does not exist! Trying a backup file...")
+        {:cont, {:error, :enoent}}
+      end
+    end)
 
-      Logger.debug("Moving backup file to stable file #{backup_path} => #{stable_path}")
-      File.rename!(backup_path, stable_path)
-    end
-
-    # Restore from the stable path
-    if File.exists?(stable_path) do
-      Logger.debug("Restoring PropertyTable from disk: #{stable_path}")
-      to_charlist(stable_path) |> :ets.file2tab()
-    else
-      {:error, :enoent}
+    case result do
+      {:ok, table} -> {:ok, table}
+      {:error, _} ->
+        Logger.error("DATA LOSS! - We could not load the stable file, or the backup file! If you have snapshots consider restoring from those!")
+        {:error, :failed_to_restore}
     end
   end
 
@@ -144,6 +136,19 @@ defmodule PropertyTable.Persist do
       full_name = Path.basename(file_path)
       {snapshot_id, full_name}
     end)
+  end
+
+  defp try_restore_tabfile(tabfile_path) do
+    Logger.debug("Attempting to restore from file: #{tabfile_path}")
+
+    converted_path = to_charlist(tabfile_path)
+    case :ets.file2tab(converted_path, verify: true) do
+      {:ok, table} -> {:halt, {:ok, table}}
+      {:error, err} ->
+        Logger.warn("Failed to restore from file #{tabfile_path} - #{inspect(err)}")
+        Logger.warn("Will try another backup file...")
+        {:cont, {:error, err}}
+    end
   end
 
   defp take_options(options) when is_list(options) do
