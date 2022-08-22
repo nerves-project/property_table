@@ -126,7 +126,7 @@ defmodule PropertyTablePersistTest do
     File.write!(stable_path, random_content, [:binary])
 
     # Reboot the table, it should restore the backup file
-    {:ok, pid} = start_supervised({PropertyTable, name: table, persist_data_path: persist_path})
+    {:ok, _pid} = start_supervised({PropertyTable, name: table, persist_data_path: persist_path})
 
     assert PropertyTable.get(table, ["test"]) == :test_value
   end
