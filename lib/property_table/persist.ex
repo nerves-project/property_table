@@ -31,7 +31,7 @@ defmodule PropertyTable.Persist do
   @data_stable_name "prop_table.db"
   @data_backup_name "prop_table.db.backup"
 
-  @spec persist_to_disk(reference() | atom(), Keyword.t()) :: :ok | no_return()
+  @spec persist_to_disk(reference() | atom(), Keyword.t()) :: :ok | :error | no_return()
   def persist_to_disk(table, options) do
     options = take_options(options)
 
@@ -51,6 +51,10 @@ defmodule PropertyTable.Persist do
     end
 
     :ok
+  rescue
+    e ->
+      Logger.error("Failed to persist table to disk: #{e}")
+      :error
   end
 
   @spec restore_from_disk(Keyword.t()) :: {:ok, reference() | atom()} | {:error, atom()}
@@ -63,24 +67,35 @@ defmodule PropertyTable.Persist do
     # Reduce over all the possible paths we want to try and restore from
     attempts = [stable_path, backup_path]
 
-    result = Enum.reduce_while(attempts, {:error, :failed_to_load}, fn path, _ ->
-      if File.exists?(path) do
-        try_restore_tabfile(path)
-      else
-        Logger.warn("File #{path} does not exist! Trying a backup file...")
-        {:cont, {:error, :enoent}}
-      end
-    end)
+    result =
+      Enum.reduce_while(attempts, {:error, :failed_to_load}, fn path, _ ->
+        if File.exists?(path) do
+          try_restore_tabfile(path)
+        else
+          Logger.warn("File #{path} does not exist! Trying a backup file...")
+          {:cont, {:error, :enoent}}
+        end
+      end)
 
     case result do
-      {:ok, table} -> {:ok, table}
+      {:ok, table} ->
+        {:ok, table}
+
       {:error, _} ->
-        Logger.error("DATA LOSS! - We could not load the stable file, or the backup file! If you have snapshots consider restoring from those!")
+        Logger.error(
+          "DATA LOSS! - We could not load the stable file, or the backup file! If you have snapshots consider restoring from those!"
+        )
+
         {:error, :failed_to_restore}
     end
+  rescue
+    e ->
+      Logger.error("Failed to restore table from disk: #{e}")
+      {:error, :failed_to_restore}
   end
 
-  @spec save_snapshot(reference() | atom(), Keyword.t()) :: {:ok, String.t()} | no_return()
+  @spec save_snapshot(reference() | atom(), Keyword.t()) ::
+          {:ok, String.t()} | :error | no_return()
   def save_snapshot(table, options) do
     options = take_options(options)
     persist_to_disk(table, options)
@@ -102,6 +117,10 @@ defmodule PropertyTable.Persist do
     maybe_clean_old_snapshots(options)
 
     {:ok, snapshot_id}
+  rescue
+    e ->
+      Logger.error("Failed to save snapshot to disk: #{e}")
+      :error
   end
 
   @spec restore_snapshot(Keyword.t(), String.t()) :: :ok | {:error, :enoent} | no_return()
@@ -142,8 +161,11 @@ defmodule PropertyTable.Persist do
     Logger.debug("Attempting to restore from file: #{tabfile_path}")
 
     converted_path = to_charlist(tabfile_path)
+
     case :ets.file2tab(converted_path, verify: true) do
-      {:ok, table} -> {:halt, {:ok, table}}
+      {:ok, table} ->
+        {:halt, {:ok, table}}
+
       {:error, err} ->
         Logger.warn("Failed to restore from file #{tabfile_path} - #{inspect(err)}")
         Logger.warn("Will try another backup file...")
