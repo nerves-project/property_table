@@ -32,6 +32,7 @@ defmodule PropertyTable.PersistFile do
   @spec decode_file(binary) :: {:error, :bad_checksum | :bad_file} | {:ok, binary}
   def decode_file(file_path) when is_binary(file_path) do
     file_content = File.read!(file_path)
+
     case decode_bitstring(file_content) do
       {:ok, decoded} -> validate_payload(decoded.payload, decoded.hash)
       error -> error
@@ -46,7 +47,8 @@ defmodule PropertyTable.PersistFile do
     <<
       @magic_file_header::binary,
       @file_version::8,
-      0x0::8, # Reserved byte
+      # Reserved byte
+      0x0::8,
       payload_length::64,
       table_content_binary::binary,
       payload_hash::binary
@@ -55,6 +57,7 @@ defmodule PropertyTable.PersistFile do
 
   defp validate_payload(payload, hash) do
     check_hash = :crypto.hash(:md5, payload)
+
     if hash != check_hash do
       {:error, :bad_checksum}
     else
@@ -62,10 +65,17 @@ defmodule PropertyTable.PersistFile do
     end
   end
 
-  defp decode_bitstring(<<@magic_file_header, version::8, _reserved::8, payload_len::64, table_content::binary-size(payload_len), payload_hash::binary>>), do: {:ok, %{
-    file_version: version,
-    payload: table_content,
-    hash: payload_hash
-  }}
+  defp decode_bitstring(
+         <<@magic_file_header, version::8, _reserved::8, payload_len::64,
+           table_content::binary-size(payload_len), payload_hash::binary>>
+       ),
+       do:
+         {:ok,
+          %{
+            file_version: version,
+            payload: table_content,
+            hash: payload_hash
+          }}
+
   defp decode_bitstring(_), do: {:error, :bad_file}
 end

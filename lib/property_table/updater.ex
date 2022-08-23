@@ -48,7 +48,9 @@ defmodule PropertyTable.Updater do
     end
 
     case Persist.restore_from_disk(table_name, persistence_options) do
-      :ok -> :ok
+      :ok ->
+        :ok
+
       {:error, _error_reason} ->
         create_ets_table(table_name, initial_properties)
     end
