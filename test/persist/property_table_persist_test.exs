@@ -116,8 +116,8 @@ defmodule PropertyTablePersistTest do
 
     Process.exit(pid, :normal)
 
-    stable_path = Path.join(persist_path, ["#{table}", "/prop_table.db"])
-    backup_path = Path.join(persist_path, ["#{table}", "/prop_table.db.backup"])
+    stable_path = Path.join(persist_path, ["#{table}", "/data.ptable"])
+    backup_path = Path.join(persist_path, ["#{table}", "/data.ptable.backup"])
 
     File.copy!(stable_path, backup_path)
 
