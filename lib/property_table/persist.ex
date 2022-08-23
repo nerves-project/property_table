@@ -21,15 +21,18 @@ defmodule PropertyTable.Persist do
 
   require Logger
 
+  alias PropertyTable.PersistFile
+
   # Options for persisting to disk, and their default values
   @persist_options %{
-    data_directory: "/data/property_table",
+    data_directory: "/tmp/property_table",
     table_name: nil,
-    max_snapshots: 25
+    max_snapshots: 25,
+    compression: 6
   }
 
-  @data_stable_name "prop_table.db"
-  @data_backup_name "prop_table.db.backup"
+  @data_stable_name "data.ptable"
+  @data_backup_name "data.ptable.backup"
 
   @spec persist_to_disk(reference() | atom(), Keyword.t()) :: :ok | :error | no_return()
   def persist_to_disk(table, options) do
@@ -42,17 +45,15 @@ defmodule PropertyTable.Persist do
       # Move the current stable data file to the backup path
       Logger.debug("Moving stable data file to backup: #{stable_path} => #{backup_path}")
       File.rename!(stable_path, backup_path)
-
-      Logger.debug("Writing PropertyTable to #{stable_path}")
-
-      :ok =
-        :ets.tab2file(table, stable_path |> to_charlist(), extended_info: [:md5sum], sync: true)
-    else
-      Logger.debug("Writing PropertyTable to #{stable_path}")
-
-      :ok =
-        :ets.tab2file(table, stable_path |> to_charlist(), extended_info: [:md5sum], sync: true)
     end
+
+    Logger.debug("Writing PropertyTable to #{stable_path}")
+
+    dump = PropertyTable.get_all(table)
+    binary_data = :erlang.term_to_binary(dump, compressed: options[:compression])
+    encoded = PersistFile.encode_binary(binary_data)
+
+    File.write!(stable_path, encoded, [:binary])
 
     :ok
   rescue
@@ -61,8 +62,8 @@ defmodule PropertyTable.Persist do
       :error
   end
 
-  @spec restore_from_disk(Keyword.t()) :: {:ok, reference() | atom()} | {:error, atom()}
-  def restore_from_disk(options) do
+  @spec restore_from_disk(reference() | atom(), Keyword.t()) :: :ok | {:error, atom()}
+  def restore_from_disk(table, options) do
     options = take_options(options)
 
     stable_path = get_path(:stable, options)
@@ -82,15 +83,19 @@ defmodule PropertyTable.Persist do
       end)
 
     case result do
-      {:ok, table} ->
-        {:ok, table}
+      {:ok, data} ->
+        ^table = :ets.new(table, [:named_table, :public])
 
-      {:error, _} ->
-        Logger.error(
-          "DATA LOSS! - We could not load the stable file, or the backup file! If you have snapshots consider restoring from those!"
-        )
+        # Insert the restored properties at the current timestamp
+        timestamp = System.monotonic_time()
 
-        {:error, :failed_to_restore}
+        Enum.each(data, fn {property, value} ->
+          :ets.insert(table, {property, value, timestamp})
+        end)
+
+        :ok
+      error ->
+        error
     end
   rescue
     e ->
@@ -162,16 +167,14 @@ defmodule PropertyTable.Persist do
   end
 
   defp try_restore_tabfile(tabfile_path) do
-    Logger.debug("Attempting to restore from file: #{tabfile_path}")
+    Logger.debug("Attempting to load data from file: #{tabfile_path}")
 
-    converted_path = to_charlist(tabfile_path)
-
-    case :ets.file2tab(converted_path, verify: true) do
-      {:ok, table} ->
-        {:halt, {:ok, table}}
+    case PersistFile.decode_file(tabfile_path) do
+      {:ok, data} ->
+        {:halt, {:ok, :erlang.binary_to_term(data)}}
 
       {:error, err} ->
-        Logger.warn("Failed to restore from file #{tabfile_path} - #{inspect(err)}")
+        Logger.warn("Failed to load data from file #{tabfile_path} - #{inspect(err)}")
         Logger.warn("Will try another backup file...")
         {:cont, {:error, err}}
     end

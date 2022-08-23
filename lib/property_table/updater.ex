@@ -47,18 +47,9 @@ defmodule PropertyTable.Updater do
       :ets.delete(table_name)
     end
 
-    case Persist.restore_from_disk(persistence_options) do
-      {:ok, table} ->
-        restored_table_name = :ets.info(table)[:name]
-
-        # Ensure the table loaded from the file will match the table we query later
-        # if for some odd reason the table got renamed...
-        if table_name != restored_table_name do
-          :ets.rename(table, table_name)
-        end
-
-      # If there is no good file to restore from just create a new table
-      {:error, _reason} ->
+    case Persist.restore_from_disk(table_name, persistence_options) do
+      :ok -> :ok
+      {:error, _error_reason} ->
         create_ets_table(table_name, initial_properties)
     end
   end
