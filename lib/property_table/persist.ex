@@ -194,24 +194,24 @@ defmodule PropertyTable.Persist do
   defp get_path(:stable, options) do
     dir = Path.join(options[:data_directory], options[:table_name])
     File.mkdir_p!(dir)
-    Path.join(options[:data_directory], [options[:table_name], "/", @data_stable_name])
+    Path.join([options[:data_directory], options[:table_name], @data_stable_name])
   end
 
   defp get_path(:backup, options) do
     dir = Path.join(options[:data_directory], options[:table_name])
     File.mkdir_p!(dir)
-    Path.join(options[:data_directory], [options[:table_name], "/", @data_backup_name])
+    Path.join([options[:data_directory], options[:table_name], @data_backup_name])
   end
 
   defp get_path(:snapshot, options) do
-    dir = Path.join(options[:data_directory], [options[:table_name], "/", "snapshots"])
+    dir = Path.join([options[:data_directory], options[:table_name], "snapshots"])
     File.mkdir_p!(dir)
 
     dir
   end
 
   defp get_path(:snapshot, options, snapshot_name) do
-    dir = Path.join(options[:data_directory], [options[:table_name], "/", "snapshots"])
+    dir = Path.join([options[:data_directory], options[:table_name], "snapshots"])
     File.mkdir_p!(dir)
 
     Path.join(dir, "#{snapshot_name}")
