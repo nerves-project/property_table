@@ -17,7 +17,7 @@ PropertyTable consumers express their interest in properties using "patterns". A
 wildcards. This allows one to create hierarchical key-value stores, map-based
 stores, or just simple key-value stores with notifications.
 
-PropertyTable is not persistent. Keys and values are backed by ETS.
+PropertyTable is optionally persistent to disk. Keys and values are backed by ETS.
 <!-- MODULEDOC -->
 
 ## Example

@@ -10,10 +10,21 @@ defmodule PropertyTable.Supervisor do
       matcher: options.matcher,
       registry: registry_name,
       table: options.table,
-      tuple_events: options.tuple_events
+      tuple_events: options.tuple_events,
+      persistence_options: options.persistence_options
     }
 
-    PropertyTable.Updater.create_ets_table(options.table, options.properties)
+    # Try and restore from disk if persistence options are provided
+    # otherwise just create a new ETS table
+    if options.persistence_options != nil do
+      PropertyTable.Updater.maybe_restore_ets_table(
+        options.table,
+        options.properties,
+        options.persistence_options
+      )
+    else
+      PropertyTable.Updater.create_ets_table(options.table, options.properties)
+    end
 
     children = [
       {Registry, [keys: :duplicate, name: registry_name, partitions: 1]},

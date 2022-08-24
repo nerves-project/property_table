@@ -7,6 +7,7 @@ defmodule PropertyTable.Updater do
   use GenServer
 
   alias PropertyTable.Event
+  alias PropertyTable.Persist
 
   require Logger
 
@@ -33,6 +34,26 @@ defmodule PropertyTable.Updater do
     Enum.each(initial_properties, fn {property, value} ->
       :ets.insert(table, {property, value, timestamp})
     end)
+  end
+
+  @spec maybe_restore_ets_table(
+          PropertyTable.table_id(),
+          [PropertyTable.property_value()],
+          Keyword.t()
+        ) :: :ok
+  def maybe_restore_ets_table(table_name, initial_properties, persistence_options) do
+    # if a table with this name already exists, delete it
+    if :ets.info(table_name) != :undefined do
+      :ets.delete(table_name)
+    end
+
+    case Persist.restore_from_disk(table_name, persistence_options) do
+      :ok ->
+        :ok
+
+      {:error, _error_reason} ->
+        create_ets_table(table_name, initial_properties)
+    end
   end
 
   @doc false
@@ -94,9 +115,44 @@ defmodule PropertyTable.Updater do
     GenServer.call(server_name(table), {:delete_matches, pattern, System.monotonic_time()})
   end
 
+  @doc """
+  Take a snapshot of the table and save to disk (if persistence is configured)
+  """
+  @spec snapshot(PropertyTable.table_id()) :: {:ok, String.t()} | :noop
+  def snapshot(table) do
+    GenServer.call(server_name(table), :snapshot)
+  end
+
+  @doc """
+  Restore a snapshot by ID (if persistence is configured)
+  """
+  @spec restore_snapshot(PropertyTable.table_id(), String.t()) :: :ok | :noop
+  def restore_snapshot(table, snapshot_id) do
+    GenServer.call(server_name(table), {:restore_snapshot, snapshot_id})
+  end
+
+  @doc """
+  Get a list of snapshots (if persistence is configured)
+  """
+  @spec get_snapshots(PropertyTable.table_id()) :: [{String.t(), String.t()}]
+  def get_snapshots(table) do
+    GenServer.call(server_name(table), :get_snapshots)
+  end
+
+  @doc """
+  Save table to disk immediately (if persistence is configured)
+  """
+  @spec flush_to_disk(PropertyTable.table_id()) :: :ok
+  def flush_to_disk(table) do
+    GenServer.call(server_name(table), :persist)
+    :ok
+  end
+
   @impl GenServer
   def init(opts) do
     Registry.put_meta(opts.registry, :matcher, opts.matcher)
+
+    :ok = maybe_setup_persistence(opts.persistence_options)
 
     {:ok, opts}
   end
@@ -204,6 +260,54 @@ defmodule PropertyTable.Updater do
     {:reply, :ok, state}
   end
 
+  @impl GenServer
+  def handle_call(:snapshot, _from, state) do
+    if state.persistence_options == nil do
+      {:reply, :noop, state}
+    else
+      {:ok, snapshot_id} = Persist.save_snapshot(state.table, state.persistence_options)
+      {:reply, {:ok, snapshot_id}, state}
+    end
+  end
+
+  @impl GenServer
+  def handle_call({:restore_snapshot, snapshot_id}, _from, state) do
+    if state.persistence_options == nil do
+      {:reply, :noop, state}
+    else
+      case Persist.restore_snapshot(state.persistence_options, snapshot_id) do
+        :ok ->
+          # With the snapshot file restore, reload the table from disk like usual
+          maybe_restore_ets_table(state.table, [], state.persistence_options)
+          {:reply, :ok, state}
+
+        {:error, _err} ->
+          {:reply, :noop, state}
+      end
+    end
+  end
+
+  @impl GenServer
+  def handle_call(:get_snapshots, _from, state) do
+    if state.persistence_options == nil do
+      {:reply, [], state}
+    else
+      {:reply, Persist.get_snapshot_list(state.persistence_options), state}
+    end
+  end
+
+  @impl GenServer
+  def handle_call(:persist, _from, state) do
+    Persist.persist_to_disk(state.table, state.persistence_options)
+    {:reply, :ok, state}
+  end
+
+  @impl GenServer
+  def handle_info(:persist, state) do
+    Persist.persist_to_disk(state.table, state.persistence_options)
+    {:noreply, state}
+  end
+
   defp match_with_timestamp(table, matcher, pattern) do
     :ets.foldl(
       fn {property, value, timestamp}, acc ->
@@ -290,4 +394,17 @@ defmodule PropertyTable.Updater do
   end
 
   defp compute_events([], _state, acc), do: acc
+
+  defp maybe_setup_persistence(nil), do: :ok
+
+  defp maybe_setup_persistence(options) when is_list(options) do
+    if Keyword.has_key?(options, :interval) do
+      case :timer.send_interval(options[:interval], :persist) do
+        {:error, reason} -> raise "Failed to start persist timer: #{reason}"
+        _ -> :ok
+      end
+    end
+
+    :ok
+  end
 end
