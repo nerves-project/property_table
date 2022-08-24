@@ -39,7 +39,7 @@ defmodule PropertyTable.PersistFile do
     end
   end
 
-  @spec encode_binary(binary) :: binary()
+  @spec encode_binary(binary) :: <<_::64, _::_*8>>
   def encode_binary(table_content_binary) when is_binary(table_content_binary) do
     payload_length = byte_size(table_content_binary)
     payload_hash = :crypto.hash(:md5, table_content_binary)
