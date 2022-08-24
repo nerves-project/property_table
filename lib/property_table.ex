@@ -60,8 +60,8 @@ defmodule PropertyTable do
   * `:persist_interval` - if set PropertyTable will persist the contents of
     tables to disk in intervals of the provided value (in milliseconds) automatically.
   * `:persist_max_snapshots` - Maximum number of manual snapshots to keep on disk before they
-    are replaced - (oldest snapshots are replaced first.)
-  * `:persist_compression` - `0..9` range to compress the terms when written to disk, see `:erlang.term_to_binary/2`
+    are replaced - (oldest snapshots are replaced first.) Defaults to 25.
+  * `:persist_compression` - `0..9` range to compress the terms when written to disk, see `:erlang.term_to_binary/2`. Defaults to 6.
   """
   @spec start_link([option()]) :: Supervisor.on_start()
   def start_link(options) do
