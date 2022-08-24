@@ -221,7 +221,7 @@ defmodule PropertyTable.Persist do
       Logger.warn("Number of snapshots is over configured max: #{options[:max_snapshots]}")
       Logger.warn("Deleting oldest snapshot: #{to_delete_id}")
 
-      to_delete_path =  get_path(:snapshot, options, to_delete_id)
+      to_delete_path = get_path(:snapshot, options, to_delete_id)
 
       File.rm!(to_delete_path)
     end

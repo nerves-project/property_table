@@ -60,10 +60,11 @@ defmodule PropertyTablePersistTest do
            ] = PropertyTable.get_snapshots(table)
   end
 
-  test "PropertyTable.get_snapshots/1 should return a list of all current snapshots on disk in order of oldest to newest", %{
-    table_name: table,
-    path: persist_path
-  } do
+  test "PropertyTable.get_snapshots/1 should return a list of all current snapshots on disk in order of oldest to newest",
+       %{
+         table_name: table,
+         path: persist_path
+       } do
     {:ok, _pid} =
       start_supervised(
         {PropertyTable, name: table, persist_data_path: persist_path, persist_max_snapshots: 5}
@@ -75,7 +76,8 @@ defmodule PropertyTablePersistTest do
     :timer.sleep(1000)
     {:ok, id_newest} = PropertyTable.snapshot(table)
 
-    assert [id_oldest, id_middle, id_newest] == PropertyTable.get_snapshots(table) |> Enum.map(fn {id, _} -> id end)
+    assert [id_oldest, id_middle, id_newest] ==
+             PropertyTable.get_snapshots(table) |> Enum.map(fn {id, _} -> id end)
   end
 
   test "PropertyTable.restore_snapshot/1 should return a table to a previous snapshot state", %{
