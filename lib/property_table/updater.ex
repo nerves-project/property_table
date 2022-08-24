@@ -281,8 +281,7 @@ defmodule PropertyTable.Updater do
           maybe_restore_ets_table(state.table, [], state.persistence_options)
           {:reply, :ok, state}
 
-        {:error, :enoent} ->
-          Logger.error("Snapshot with ID #{snapshot_id} was not found! Doing nothing.")
+        {:error, _err} ->
           {:reply, :noop, state}
       end
     end

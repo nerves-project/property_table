@@ -129,24 +129,29 @@ defmodule PropertyTable.Persist do
       :error
   end
 
-  @spec restore_snapshot(Keyword.t(), String.t()) :: :ok | {:error, :enoent} | no_return()
+  @spec restore_snapshot(Keyword.t(), String.t()) :: :ok | {:error, atom()} | no_return()
   def restore_snapshot(options, snapshot_id) do
     options = take_options(options)
     stable_path = get_path(:stable, options)
-    snapshots_path = get_path(:snapshot, options) |> Path.join("#{snapshot_id}")
-    found_snapshot = Path.wildcard(snapshots_path)
+    snapshot_path = get_path(:snapshot, options) |> Path.join(snapshot_id)
 
-    if length(found_snapshot) != 1 do
-      {:error, :enoent}
-    else
-      [to_restore] = found_snapshot
+    case PersistFile.decode_file(snapshot_path) do
+      {:ok, _content} ->
+        Logger.debug("Restoring table file snapshot: #{snapshot_path} => #{stable_path}")
+        File.copy!(snapshot_path, stable_path)
+        :ok
 
-      # Copy the found snapshot in place of the current stable db path
-      Logger.debug("Restoring table file snapshot: #{to_restore} => #{stable_path}")
-      File.copy!(to_restore, stable_path)
-
-      :ok
+      {:error, err} ->
+        Logger.error("Failed to validate snapshot file! - #{err}")
+        {:error, err}
     end
+  rescue
+    e ->
+      Logger.error(
+        "Failed to copy snapshot in place, could not read or copy the snapshot file! - #{e}"
+      )
+
+      {:error, :enoent}
   end
 
   @spec get_snapshot_list(Keyword.t()) :: [{String.t(), tuple()}] | no_return()
