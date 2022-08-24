@@ -53,7 +53,7 @@ defmodule PropertyTable.Persist do
     binary_data = :erlang.term_to_binary(dump, compressed: options[:compression])
     encoded = PersistFile.encode_binary(binary_data)
 
-    File.write!(stable_path, encoded, [:binary])
+    File.write!(stable_path, encoded, [:binary, :sync])
 
     :ok
   rescue
@@ -133,7 +133,7 @@ defmodule PropertyTable.Persist do
   def restore_snapshot(options, snapshot_id) do
     options = take_options(options)
     stable_path = get_path(:stable, options)
-    snapshots_path = get_path(:snapshot, options) |> Path.join("*_#{snapshot_id}")
+    snapshots_path = get_path(:snapshot, options) |> Path.join("#{snapshot_id}")
     found_snapshot = Path.wildcard(snapshots_path)
 
     if length(found_snapshot) != 1 do
@@ -149,18 +149,20 @@ defmodule PropertyTable.Persist do
     end
   end
 
-  @spec get_snapshot_list(Keyword.t()) :: [{String.t(), String.t()}] | no_return()
+  @spec get_snapshot_list(Keyword.t()) :: [{String.t(), tuple()}] | no_return()
   def get_snapshot_list(options) do
     options = take_options(options)
-    snapshot_path = get_path(:snapshot, options, "*")
+    snapshot_path = get_path(:snapshot, options)
 
-    Path.wildcard(snapshot_path)
-    |> Enum.sort()
-    |> Enum.map(fn file_path ->
-      snapshot_id = String.split(file_path, "_") |> List.last()
-      full_name = Path.basename(file_path)
-      {snapshot_id, full_name}
-    end)
+    snapshots =
+      File.ls!(snapshot_path)
+      |> Enum.map(fn id ->
+        stat = Path.join(snapshot_path, [id]) |> File.stat!()
+        {id, stat.ctime}
+      end)
+      |> Enum.sort_by(fn {_id, ctime} -> ctime end)
+
+    snapshots
   end
 
   defp try_restore_tabfile(tabfile_path) do
@@ -207,19 +209,21 @@ defmodule PropertyTable.Persist do
     dir = Path.join(options[:data_directory], [options[:table_name], "/", "snapshots"])
     File.mkdir_p!(dir)
 
-    Path.join(dir, "snapshot_#{snapshot_name}")
+    Path.join(dir, "#{snapshot_name}")
   end
 
   defp maybe_clean_old_snapshots(options) do
-    snapshot_path = get_path(:snapshot, options, "*")
-    snapshot_files = Path.wildcard(snapshot_path) |> Enum.sort()
+    snapshot_files = get_snapshot_list(options)
 
     if length(snapshot_files) > options[:max_snapshots] do
-      to_delete = List.first(snapshot_files)
-      Logger.warn("Number of snapshots is over configured max: #{options[:max_snapshots]}")
-      Logger.warn("Deleting oldest snapshot: #{to_delete}")
+      {to_delete_id, _} = List.first(snapshot_files)
 
-      File.rm!(to_delete)
+      Logger.warn("Number of snapshots is over configured max: #{options[:max_snapshots]}")
+      Logger.warn("Deleting oldest snapshot: #{to_delete_id}")
+
+      to_delete_path =  get_path(:snapshot, options, to_delete_id)
+
+      File.rm!(to_delete_path)
     end
   end
 end
