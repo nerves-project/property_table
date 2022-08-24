@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.1
+
+* New features
+  * Automatic persistence and snapshots for PropertyTables. This makes it
+    possible to use `PropertyTable` for small key/value stores like those for
+    storing runtime settings especially for Nerves devices. PropertyTable
+    protects against corruption and unexpected reboots that happen mid-write.
+
 ## v0.2.0
 
 * Backwards incompatible changes
