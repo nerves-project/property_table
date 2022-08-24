@@ -49,7 +49,9 @@ defmodule PropertyTablePersistTest do
       )
 
     {:ok, _snapshot_id_0} = PropertyTable.snapshot(table)
+    :timer.sleep(1000)
     {:ok, snapshot_id_1} = PropertyTable.snapshot(table)
+    :timer.sleep(1000)
     {:ok, snapshot_id_2} = PropertyTable.snapshot(table)
 
     assert [
@@ -58,7 +60,7 @@ defmodule PropertyTablePersistTest do
            ] = PropertyTable.get_snapshots(table)
   end
 
-  test "PropertyTable.get_snapshots/1 should return a list of all current snapshots on disk", %{
+  test "PropertyTable.get_snapshots/1 should return a list of all current snapshots on disk in order of oldest to newest", %{
     table_name: table,
     path: persist_path
   } do
@@ -67,11 +69,13 @@ defmodule PropertyTablePersistTest do
         {PropertyTable, name: table, persist_data_path: persist_path, persist_max_snapshots: 5}
       )
 
-    {:ok, _id} = PropertyTable.snapshot(table)
-    {:ok, _id} = PropertyTable.snapshot(table)
-    {:ok, _id} = PropertyTable.snapshot(table)
+    {:ok, id_oldest} = PropertyTable.snapshot(table)
+    :timer.sleep(1000)
+    {:ok, id_middle} = PropertyTable.snapshot(table)
+    :timer.sleep(1000)
+    {:ok, id_newest} = PropertyTable.snapshot(table)
 
-    assert length(PropertyTable.get_snapshots(table)) == 3
+    assert [id_oldest, id_middle, id_newest] == PropertyTable.get_snapshots(table) |> Enum.map(fn {id, _} -> id end)
   end
 
   test "PropertyTable.restore_snapshot/1 should return a table to a previous snapshot state", %{
