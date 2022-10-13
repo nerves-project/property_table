@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.2
+
+* Updates
+  * Fixed missing `:crypto` dependency warning.
+
 ## v0.2.1
 
 * New features
