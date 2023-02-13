@@ -77,7 +77,7 @@ defmodule PropertyTable.Persist do
         if File.exists?(path) do
           try_restore_tabfile(path)
         else
-          Logger.warn("File #{path} does not exist! Trying a backup file...")
+          Logger.warning("File #{path} does not exist! Trying a backup file...")
           {:cont, {:error, :enoent}}
         end
       end)
@@ -178,8 +178,8 @@ defmodule PropertyTable.Persist do
         {:halt, {:ok, :erlang.binary_to_term(data)}}
 
       {:error, err} ->
-        Logger.warn("Failed to load data from file #{tabfile_path} - #{inspect(err)}")
-        Logger.warn("Will try another backup file...")
+        Logger.warning("Failed to load data from file #{tabfile_path} - #{inspect(err)}")
+        Logger.warning("Will try another backup file...")
         {:cont, {:error, err}}
     end
   end
@@ -223,8 +223,8 @@ defmodule PropertyTable.Persist do
     if length(snapshot_files) > options[:max_snapshots] do
       {to_delete_id, _} = List.first(snapshot_files)
 
-      Logger.warn("Number of snapshots is over configured max: #{options[:max_snapshots]}")
-      Logger.warn("Deleting oldest snapshot: #{to_delete_id}")
+      Logger.warning("Number of snapshots is over configured max: #{options[:max_snapshots]}")
+      Logger.warning("Deleting oldest snapshot: #{to_delete_id}")
 
       to_delete_path = get_path(:snapshot, options, to_delete_id)
 
