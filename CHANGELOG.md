@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.3
+
+* Updates
+  * Fix compiler warnings with Elixir 1.15
+
 ## v0.2.2
 
 * Updates
