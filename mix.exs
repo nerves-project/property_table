@@ -20,8 +20,7 @@ defmodule PropertyTable.MixProject do
         docs: :docs,
         "hex.publish": :docs,
         "hex.build": :docs,
-        credo: :test,
-        "coveralls.circle": :test
+        credo: :test
       }
     ]
   end
@@ -42,7 +41,6 @@ defmodule PropertyTable.MixProject do
       {:benchee, "~> 1.0", only: :dev},
       {:credo, "~> 1.6", only: :test, runtime: false},
       {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.14", only: :test, runtime: false},
       {:ex_doc, "~> 0.26", only: :docs, runtime: false}
     ]
   end
