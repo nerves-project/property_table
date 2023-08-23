@@ -9,8 +9,7 @@ defmodule PropertyTableTest do
     property1 = ["test", "a", "b"]
     property2 = ["test", "c"]
 
-    {:ok, _pid} =
-      start_supervised({PropertyTable, properties: [{property1, 1}, {property2, 2}], name: table})
+    start_supervised!({PropertyTable, properties: [{property1, 1}, {property2, 2}], name: table})
 
     assert PropertyTable.get(table, property1) == 1
     assert PropertyTable.get(table, property2) == 2
@@ -20,8 +19,7 @@ defmodule PropertyTableTest do
     property1 = ["test", "a", "b"]
     property2 = ["test", "c"]
 
-    {:ok, _pid} =
-      start_supervised({PropertyTable, properties: [{property1, 1}, {property2, 2}], name: table})
+    start_supervised!({PropertyTable, properties: [{property1, 1}, {property2, 2}], name: table})
 
     assert PropertyTable.get(table, property1) == 1
     PropertyTable.delete(table, property1)
@@ -38,8 +36,7 @@ defmodule PropertyTableTest do
     property2 = ["test", "b"]
     property3 = ["test", "c"]
 
-    {:ok, _pid} =
-      start_supervised({PropertyTable, properties: [{property1, 1}, {property2, 2}], name: table})
+    start_supervised!({PropertyTable, properties: [{property1, 1}, {property2, 2}], name: table})
 
     # Change a seed property and add a new property
     PropertyTable.put(table, property2, 22)
@@ -64,7 +61,7 @@ defmodule PropertyTableTest do
   end
 
   test "wildcard subscription", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     PropertyTable.subscribe(table, ["a", :_, "c"])
 
     # Exact match
@@ -90,7 +87,7 @@ defmodule PropertyTableTest do
   end
 
   test "sending events", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     property = ["test"]
     PropertyTable.subscribe(table, property)
 
@@ -110,7 +107,7 @@ defmodule PropertyTableTest do
   end
 
   test "properties can be set to nil", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     property = ["test"]
 
     PropertyTable.put(table, property, nil)
@@ -118,7 +115,7 @@ defmodule PropertyTableTest do
   end
 
   test "subscribing from one process to multiple patterns", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     property1 = ["test1"]
     property2 = ["test2"]
     property3 = ["test3"]
@@ -149,7 +146,7 @@ defmodule PropertyTableTest do
   end
 
   test "generic subscribers receive events", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     property = ["test", "a", "b"]
 
     PropertyTable.subscribe(table, [])
@@ -162,7 +159,7 @@ defmodule PropertyTableTest do
   end
 
   test "duplicate events are dropped", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     property = ["test", "a", "b"]
 
     PropertyTable.subscribe(table, property)
@@ -175,7 +172,7 @@ defmodule PropertyTableTest do
   end
 
   test "getting the latest", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     property = ["test", "a", "b"]
     assert PropertyTable.get(table, property) == nil
 
@@ -187,7 +184,7 @@ defmodule PropertyTableTest do
   end
 
   test "fetching data with timestamps", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     property = ["test", "a", "b"]
     assert :error == PropertyTable.fetch_with_timestamp(table, property)
 
@@ -210,7 +207,7 @@ defmodule PropertyTableTest do
   end
 
   test "matching a subtree", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     property = ["test", "a", "b"]
     property2 = ["test", "a", "c"]
 
@@ -233,7 +230,7 @@ defmodule PropertyTableTest do
   end
 
   test "clearing a subtree", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     PropertyTable.put(table, ["a", "b", "c"], 1)
     PropertyTable.put(table, ["a", "b", "d"], 2)
     PropertyTable.put(table, ["a", "b", "e"], 3)
@@ -244,7 +241,7 @@ defmodule PropertyTableTest do
   end
 
   test "match using wildcards", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     PropertyTable.put(table, ["a", "b", "c"], 1)
     PropertyTable.put(table, ["A", "b", "c"], 2)
     PropertyTable.put(table, ["a", "B", "c"], 3)
@@ -298,7 +295,7 @@ defmodule PropertyTableTest do
   test "timestamp of old and new values are provided", %{test: table} do
     property = ["a", "b", "c"]
 
-    {:ok, _pid} = start_supervised({PropertyTable, name: table, properties: [{property, 1}]})
+    start_supervised!({PropertyTable, name: table, properties: [{property, 1}]})
 
     PropertyTable.subscribe(table, property)
 
@@ -322,7 +319,7 @@ defmodule PropertyTableTest do
   end
 
   test "sending the old tuple events", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table, tuple_events: true})
+    start_supervised!({PropertyTable, name: table, tuple_events: true})
     property = ["test", "a", "b"]
 
     PropertyTable.subscribe(table, [])
@@ -331,7 +328,7 @@ defmodule PropertyTableTest do
   end
 
   test "rejects bad properties", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
 
     PropertyTable.subscribe(table, [])
 
@@ -346,13 +343,13 @@ defmodule PropertyTableTest do
   end
 
   test "rejects bad subscriptions", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
 
     assert_raise ArgumentError, fn -> PropertyTable.subscribe(table, :bad) end
   end
 
   test "put_many can put many", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     property1 = ["test", "a", "b"]
     property2 = ["test", "a", "c"]
     property3 = ["test", "a", "d"]
@@ -370,7 +367,7 @@ defmodule PropertyTableTest do
   end
 
   test "put_many is all or none", %{test: table} do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     property1 = ["test", "a", "b"]
     property2 = ["test", :oops]
 
@@ -390,7 +387,7 @@ defmodule PropertyTableTest do
     property1 = ["test", "a", "b"]
     property2 = ["test", "a", "c"]
 
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
 
     PropertyTable.subscribe(table, ["test"])
 

@@ -16,7 +16,7 @@ defmodule PropertyTablePersistTest do
     table_name: table,
     path: persist_path
   } do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table, persist_data_path: persist_path})
+    start_supervised!({PropertyTable, name: table, persist_data_path: persist_path})
 
     PropertyTable.flush_to_disk(table)
 
@@ -29,7 +29,7 @@ defmodule PropertyTablePersistTest do
     table_name: table,
     path: persist_path
   } do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table, persist_data_path: persist_path})
+    start_supervised!({PropertyTable, name: table, persist_data_path: persist_path})
 
     {:ok, snapshot_id} = PropertyTable.snapshot(table)
 
@@ -43,10 +43,9 @@ defmodule PropertyTablePersistTest do
          table_name: table,
          path: persist_path
        } do
-    {:ok, _pid} =
-      start_supervised(
-        {PropertyTable, name: table, persist_data_path: persist_path, persist_max_snapshots: 2}
-      )
+    start_supervised!(
+      {PropertyTable, name: table, persist_data_path: persist_path, persist_max_snapshots: 2}
+    )
 
     {:ok, _snapshot_id_0} = PropertyTable.snapshot(table)
     :timer.sleep(1000)
@@ -65,10 +64,9 @@ defmodule PropertyTablePersistTest do
          table_name: table,
          path: persist_path
        } do
-    {:ok, _pid} =
-      start_supervised(
-        {PropertyTable, name: table, persist_data_path: persist_path, persist_max_snapshots: 5}
-      )
+    start_supervised!(
+      {PropertyTable, name: table, persist_data_path: persist_path, persist_max_snapshots: 5}
+    )
 
     {:ok, id_oldest} = PropertyTable.snapshot(table)
     :timer.sleep(1000)
@@ -84,10 +82,9 @@ defmodule PropertyTablePersistTest do
     table_name: table,
     path: persist_path
   } do
-    {:ok, _pid} =
-      start_supervised(
-        {PropertyTable, name: table, persist_data_path: persist_path, persist_max_snapshots: 5}
-      )
+    start_supervised!(
+      {PropertyTable, name: table, persist_data_path: persist_path, persist_max_snapshots: 5}
+    )
 
     # set initial property then snapshot
     PropertyTable.put(table, ["property", "test", "a"], :original_value)
@@ -105,7 +102,7 @@ defmodule PropertyTablePersistTest do
        %{
          table_name: table
        } do
-    {:ok, _pid} = start_supervised({PropertyTable, name: table})
+    start_supervised!({PropertyTable, name: table})
     assert PropertyTable.snapshot(table) == :noop
     assert PropertyTable.restore_snapshot(table, "some_id") == :noop
   end
@@ -132,7 +129,7 @@ defmodule PropertyTablePersistTest do
     File.write!(stable_path, random_content, [:binary])
 
     # Reboot the table, it should restore the backup file
-    {:ok, _pid} = start_supervised({PropertyTable, name: table, persist_data_path: persist_path})
+    start_supervised!({PropertyTable, name: table, persist_data_path: persist_path})
 
     assert PropertyTable.get(table, ["test"]) == :test_value
   end
