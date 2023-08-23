@@ -1,4 +1,4 @@
-defmodule PropertyTablePersistTest do
+defmodule PropertyTable.PersistTest do
   use ExUnit.Case
 
   @moduletag :capture_log
