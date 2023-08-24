@@ -2,6 +2,7 @@
 
 [![CircleCI](https://circleci.com/gh/nerves-project/property_table.svg?style=svg)](https://circleci.com/gh/nerves-project/property_table)
 [![Hex version](https://img.shields.io/hexpm/v/property_table.svg "Hex version")](https://hex.pm/packages/property_table)
+[![Coverage Status](https://coveralls.io/repos/github/nerves-project/property_table/badge.svg)](https://coveralls.io/github/nerves-project/property_table)
 
 <!-- MODULEDOC -->
 In-memory key-value store with subscriptions

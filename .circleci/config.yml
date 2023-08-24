@@ -37,6 +37,7 @@ jobs:
             - run: mix docs
             - run: mix hex.build
             - run: mix credo -a --strict
+            - run: mix coveralls.circle
             - run: mix dialyzer
       - save_cache:
           key: v1-mix-cache-<< parameters.tag >>-{{ checksum "mix.lock" }}

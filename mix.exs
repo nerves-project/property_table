@@ -16,11 +16,17 @@ defmodule PropertyTable.MixProject do
       package: package(),
       docs: docs(),
       dialyzer: dialyzer(),
+      test_coverage: [tool: ExCoveralls],
       preferred_cli_env: %{
         docs: :docs,
         "hex.publish": :docs,
         "hex.build": :docs,
-        credo: :test
+        credo: :test,
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "coveralls.circle": :test
       }
     ]
   end
@@ -41,6 +47,7 @@ defmodule PropertyTable.MixProject do
       {:benchee, "~> 1.0", only: :dev},
       {:credo, "~> 1.6", only: :test, runtime: false},
       {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.17", only: :test, runtime: false},
       {:ex_doc, "~> 0.26", only: :docs, runtime: false}
     ]
   end
