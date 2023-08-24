@@ -39,7 +39,7 @@ defmodule PropertyTable.Updater do
   @spec maybe_restore_ets_table(
           PropertyTable.table_id(),
           [PropertyTable.property_value()],
-          Keyword.t()
+          keyword()
         ) :: :ok
   def maybe_restore_ets_table(table_name, initial_properties, persistence_options) do
     # if a table with this name already exists, delete it

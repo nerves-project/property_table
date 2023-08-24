@@ -33,7 +33,7 @@ defmodule PropertyTable.Persist do
   @data_stable_name "data.ptable"
   @data_backup_name "data.ptable.backup"
 
-  @spec persist_to_disk(reference() | atom(), Keyword.t()) :: :ok | :error | no_return()
+  @spec persist_to_disk(PropertyTable.table_id(), keyword()) :: :ok | :error
   def persist_to_disk(table, options) do
     options = take_options(options)
 
@@ -61,7 +61,7 @@ defmodule PropertyTable.Persist do
       :error
   end
 
-  @spec restore_from_disk(reference() | atom(), Keyword.t()) :: :ok | {:error, atom()}
+  @spec restore_from_disk(PropertyTable.table_id(), keyword()) :: :ok | {:error, atom()}
   def restore_from_disk(table, options) do
     options = take_options(options)
 
@@ -103,8 +103,7 @@ defmodule PropertyTable.Persist do
       {:error, :failed_to_restore}
   end
 
-  @spec save_snapshot(reference() | atom(), Keyword.t()) ::
-          {:ok, String.t()} | :error | no_return()
+  @spec save_snapshot(PropertyTable.table_id(), keyword()) :: {:ok, String.t()} | :error
   def save_snapshot(table, options) do
     options = take_options(options)
     persist_to_disk(table, options)
@@ -128,7 +127,7 @@ defmodule PropertyTable.Persist do
       :error
   end
 
-  @spec restore_snapshot(Keyword.t(), String.t()) :: :ok | {:error, atom()} | no_return()
+  @spec restore_snapshot(keyword(), String.t()) :: :ok | {:error, atom()} | no_return()
   def restore_snapshot(options, snapshot_id) do
     options = take_options(options)
     stable_path = get_path(:stable, options)
@@ -153,7 +152,7 @@ defmodule PropertyTable.Persist do
       {:error, :enoent}
   end
 
-  @spec get_snapshot_list(Keyword.t()) :: [{String.t(), tuple()}] | no_return()
+  @spec get_snapshot_list(keyword()) :: [{String.t(), tuple()}] | no_return()
   def get_snapshot_list(options) do
     options = take_options(options)
     snapshot_path = get_path(:snapshot, options)

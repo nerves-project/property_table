@@ -21,10 +21,9 @@ defmodule PropertyTable do
   @typedoc """
   PropertyTable configuration options
 
-  See `start_link/2` for usage.
+  See `start_link/1` for usage.
   """
-  @type option() ::
-          {:name, table_id()} | {:properties, [property_value()]} | {:tuple_events, boolean()}
+  @type options() :: [name: table_id(), properties: [property_value()], tuple_events: boolean()]
 
   @doc """
   Start a PropertyTable's supervision tree
@@ -63,7 +62,7 @@ defmodule PropertyTable do
     are replaced - (oldest snapshots are replaced first.) Defaults to 25.
   * `:persist_compression` - `0..9` range to compress the terms when written to disk, see `:erlang.term_to_binary/2`. Defaults to 6.
   """
-  @spec start_link([option()]) :: Supervisor.on_start()
+  @spec start_link(options()) :: Supervisor.on_start()
   def start_link(options) do
     name =
       case Keyword.fetch(options, :name) do
@@ -115,11 +114,11 @@ defmodule PropertyTable do
   Returns a specification to start a property_table under a supervisor.
   See `Supervisor`.
   """
-  @spec child_spec(keyword()) :: Supervisor.child_spec()
-  def child_spec(opts) do
+  @spec child_spec(options()) :: Supervisor.child_spec()
+  def child_spec(options) do
     %{
-      id: Keyword.get(opts, :name, PropertyTable),
-      start: {PropertyTable, :start_link, [opts]},
+      id: Keyword.get(options, :name, PropertyTable),
+      start: {PropertyTable, :start_link, [options]},
       type: :supervisor
     }
   end

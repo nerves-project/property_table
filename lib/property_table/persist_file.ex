@@ -29,7 +29,7 @@ defmodule PropertyTable.PersistFile do
   # the internal format of how we store the table, we can use this to version the layouts
   @file_version 1
 
-  @spec decode_file(binary) :: {:error, :bad_checksum | :bad_file} | {:ok, binary}
+  @spec decode_file(binary()) :: {:error, :bad_checksum | :bad_file} | {:ok, binary()}
   def decode_file(file_path) when is_binary(file_path) do
     file_content = File.read!(file_path)
 
@@ -39,7 +39,7 @@ defmodule PropertyTable.PersistFile do
     end
   end
 
-  @spec encode_binary(binary) :: [binary(), ...]
+  @spec encode_binary(binary()) :: [binary(), ...]
   def encode_binary(table_content_binary) when is_binary(table_content_binary) do
     payload_length = byte_size(table_content_binary)
     payload_hash = :crypto.hash(:md5, table_content_binary)
