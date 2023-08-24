@@ -1,18 +1,22 @@
 defmodule PropertyTable.Persist do
   @moduledoc false
 
-  # This module contains logic to persist the content of a PropertyTable to disk
+  # This module persists the contents of a PropertyTable to disk
   #
-  # It does so in the following manner:
+  # Saving works like this:
   #
-  # 1. If a `prop_table.db` file exists in the data directory, rename it to `prop_table.db.backup`
-  # 2. Write the data of the ETS table to the file `prop_table.db`
-  # 3. Delete the backup file
+  # 1. Write the data of the ETS table to the file `prop_table.db.tmp`
+  # 2. If a previous backup file, `prop_table.db.backup`, exists, delete it
+  # 3. If a previous `prop_table.db` exists, rename it to `prop_table.db.backup`
+  # 4. Rename `prop_table.db.tmp` to `prop_table.db`
   #
-  # When you wish to restore a property table from disk, the following will occur:
+  # The first step is slow and the most likely to get interrupted by an
+  # unexpected termination of the VM. The rest of the steps should be fast.
   #
-  # 1. The stable file will be verified, if it validates, it will be loaded
-  # 2. If the stable file failed to validate or did not exist, try and load from the last backup file
+  # Restoring works like this:
+  #
+  # 1. Try loading and validating the stable file
+  # 2. Try loading and validating the backup file
   # 3. If the backup file fails, log loudly about data loss
   #
   # You can also manually request "snapshots" of the property table, this will
@@ -36,14 +40,24 @@ defmodule PropertyTable.Persist do
   }
 
   @data_stable_name "data.ptable"
-  @data_backup_name "data.ptable.backup"
+  @data_tmp_extension ".tmp"
+  @data_backup_extension ".backup"
 
   @spec persist_to_disk(PropertyTable.table_id(), keyword()) :: :ok | {:error, any()}
   def persist_to_disk(table, options) do
     options = take_options(options)
 
-    stable_path = get_path(:stable, options)
-    backup_path = get_path(:backup, options)
+    stable_path = data_file_path(options)
+    tmp_path = stable_path <> @data_tmp_extension
+    backup_path = stable_path <> @data_backup_extension
+
+    Logger.debug("Writing PropertyTable to #{tmp_path}")
+
+    dump = PropertyTable.get_all(table)
+    binary_data = :erlang.term_to_binary(dump, compressed: options[:compression])
+    encoded = PersistFile.encode_binary(binary_data)
+
+    File.write!(tmp_path, encoded, [:binary, :sync])
 
     if File.exists?(stable_path) do
       # Move the current stable data file to the backup path
@@ -51,13 +65,7 @@ defmodule PropertyTable.Persist do
       File.rename!(stable_path, backup_path)
     end
 
-    Logger.debug("Writing PropertyTable to #{stable_path}")
-
-    dump = PropertyTable.get_all(table)
-    binary_data = :erlang.term_to_binary(dump, compressed: options[:compression])
-    encoded = PersistFile.encode_binary(binary_data)
-
-    File.write!(stable_path, encoded, [:binary, :sync])
+    File.rename!(tmp_path, stable_path)
 
     :ok
   rescue
@@ -70,8 +78,8 @@ defmodule PropertyTable.Persist do
   def restore_from_disk(table, options) do
     options = take_options(options)
 
-    stable_path = get_path(:stable, options)
-    backup_path = get_path(:backup, options)
+    stable_path = data_file_path(options)
+    backup_path = stable_path <> @data_backup_extension
 
     # Reduce over all the possible paths we want to try and restore from
     attempts = [stable_path, backup_path]
@@ -116,8 +124,8 @@ defmodule PropertyTable.Persist do
     snapshot_id = :crypto.strong_rand_bytes(8) |> Base.encode16()
 
     full_snapshot_name = "#{snapshot_id}"
-    stable_path = get_path(:stable, options)
-    snapshot_path = get_path(:snapshot, options, full_snapshot_name)
+    stable_path = data_file_path(options)
+    snapshot_path = snapshot_path(options, full_snapshot_name)
 
     # Move file to snapshot directory
     Logger.debug("Creating table file snapshot: #{snapshot_path}")
@@ -135,8 +143,8 @@ defmodule PropertyTable.Persist do
   @spec restore_snapshot(keyword(), String.t()) :: :ok | {:error, atom()} | no_return()
   def restore_snapshot(options, snapshot_id) do
     options = take_options(options)
-    stable_path = get_path(:stable, options)
-    snapshot_path = get_path(:snapshot, options) |> Path.join(snapshot_id)
+    stable_path = data_file_path(options)
+    snapshot_path = snapshot_path(options, snapshot_id)
 
     case PersistFile.decode_file(snapshot_path) do
       {:ok, _content} ->
@@ -157,10 +165,10 @@ defmodule PropertyTable.Persist do
       {:error, :enoent}
   end
 
-  @spec get_snapshot_list(keyword()) :: [{String.t(), tuple()}] | no_return()
+  @spec get_snapshot_list(keyword()) :: [{String.t(), tuple()}]
   def get_snapshot_list(options) do
     options = take_options(options)
-    snapshot_path = get_path(:snapshot, options)
+    snapshot_path = snapshot_path(options)
 
     snapshots =
       File.ls!(snapshot_path)
@@ -194,27 +202,18 @@ defmodule PropertyTable.Persist do
     end)
   end
 
-  defp get_path(:stable, options) do
+  defp table_path(options, path) do
+    Path.join([options[:data_directory], options[:table_name], path])
+  end
+
+  defp data_file_path(options) do
     dir = Path.join(options[:data_directory], options[:table_name])
     File.mkdir_p!(dir)
-    Path.join([options[:data_directory], options[:table_name], @data_stable_name])
+    table_path(options, @data_stable_name)
   end
 
-  defp get_path(:backup, options) do
-    dir = Path.join(options[:data_directory], options[:table_name])
-    File.mkdir_p!(dir)
-    Path.join([options[:data_directory], options[:table_name], @data_backup_name])
-  end
-
-  defp get_path(:snapshot, options) do
-    dir = Path.join([options[:data_directory], options[:table_name], "snapshots"])
-    File.mkdir_p!(dir)
-
-    dir
-  end
-
-  defp get_path(:snapshot, options, snapshot_name) do
-    dir = Path.join([options[:data_directory], options[:table_name], "snapshots"])
+  defp snapshot_path(options, snapshot_name \\ "") do
+    dir = table_path(options, "snapshots")
     File.mkdir_p!(dir)
 
     Path.join(dir, "#{snapshot_name}")
@@ -229,7 +228,7 @@ defmodule PropertyTable.Persist do
       Logger.warning("Number of snapshots is over configured max: #{options[:max_snapshots]}")
       Logger.warning("Deleting oldest snapshot: #{to_delete_id}")
 
-      to_delete_path = get_path(:snapshot, options, to_delete_id)
+      to_delete_path = snapshot_path(options, to_delete_id)
 
       File.rm!(to_delete_path)
     end
