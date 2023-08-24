@@ -1,23 +1,28 @@
 defmodule PropertyTable.Persist do
-  @moduledoc """
-  This module contains logic to persist the content of a PropertyTable to disk
+  @moduledoc false
 
-  It does so in the following manner:
+  # This module contains logic to persist the content of a PropertyTable to disk
+  #
+  # It does so in the following manner:
+  #
+  # 1. If a `prop_table.db` file exists in the data directory, rename it to `prop_table.db.backup`
+  # 2. Write the data of the ETS table to the file `prop_table.db`
+  # 3. Delete the backup file
+  #
+  # When you wish to restore a property table from disk, the following will occur:
+  #
+  # 1. The stable file will be verified, if it validates, it will be loaded
+  # 2. If the stable file failed to validate or did not exist, try and load from the last backup file
+  # 3. If the backup file fails, log loudly about data loss
+  #
+  # You can also manually request "snapshots" of the property table, this will
+  # immediately do the procedure for persisting to disk above, then a duplicate
+  # of the current `prop_table.db` file will be copied into the `snapshots/`
+  # directory with a timestamp added to the file name. `max_snapshots` in the
+  # options keyword list can be used to limit the number of snapshots saved in
+  # the `snapshots/` directory, if the limit is reached during a snapshot
+  # operation, the oldest snapshot will be deleted from disk.
 
-  1. If a `prop_table.db` file exists in the data directory, rename it to `prop_table.db.backup`
-  2. Write the data of the ETS table to the file `prop_table.db`
-  3. Delete the backup file
-
-  When you wish to restore a property table from disk, the following will occur:
-
-  1. The stable file will be verified, if it validates, it will be loaded
-  2. If the stable file failed to validate or did not exist, try and load from the last backup file
-  3. If the backup file fails, log loudly about data loss
-
-  You can also manually request "snapshots" of the property table, this will immediately do the procedure for persisting to disk above, then a duplicate of the
-  current `prop_table.db` file will be copied into the `snapshots/` directory with a timestamp added to the file name. `max_snapshots` in the options keyword list can be used
-  to limit the number of snapshots saved in the `snapshots/` directory, if the limit is reached during a snapshot operation, the oldest snapshot will be deleted from disk.
-  """
   alias PropertyTable.PersistFile
 
   require Logger

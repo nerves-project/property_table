@@ -1,26 +1,24 @@
 defmodule PropertyTable.PersistFile do
-  @moduledoc """
-  This module contains methods to aid in writing the contents of a PropertyTable to a custom file format.
-
-  The structure of the format is the following:
-
-    ```
-    +------------------------------+
-    | HEADER 'PTABLE'              | Used to initially validate the file [0x00]
-    +------------------------------+
-    | FILE VERSION (uint8)         | Used to track the internal PropertyTable structure of the file [0x06]
-    +------------------------------+
-    | RESERVED (8 bits)            | Reserved [0x07]
-    +------------------------------+
-    | PAYLOAD SIZE (uint64)        | Length in bytes of the payload that follows [0x08]
-    +------------------------------+
-    | PAYLOAD BYTES (above size)   | Raw erlang term bytes of the table contents [0x10]
-    +------------------------------+
-    | PAYLOAD HASH (MD5 128 bits)  | MD5 Checksum of the bytes when they were written, ensures table integrity [0x10 + payload_size]
-    +------------------------------+
-    ```
-
-  """
+  @moduledoc false
+  # This module contains methods to aid in writing the contents of a PropertyTable to a custom file format.
+  #
+  # The structure of the format is the following:
+  #
+  # +--------+------+------------------------------------------+
+  # | OFFSET | SIZE | DESCRIPTION                              |
+  # +--------+------+------------------------------------------+
+  # |      0 |    6 | Header - set to 'PTABLE'                 |
+  # +--------+------+------------------------------------------+
+  # |      6 |    1 | File version - set to 1                  |
+  # +--------+------+------------------------------------------+
+  # |      7 |    1 | Reserved - set to 0                      |
+  # +--------+------+------------------------------------------+
+  # |      8 |    8 | Size of the table contents as big endian |
+  # +--------+------+------------------------------------------+
+  # |     16 |    n | Table contents as an encoded Erlang term |
+  # +--------+------+------------------------------------------+
+  # |   16+n |   16 | MD5 checksum of the table contents       |
+  # +--------+------+------------------------------------------+
 
   # PTABLE header bytes
   @magic_file_header <<80, 84, 65, 66, 76, 69>>

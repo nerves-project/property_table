@@ -11,11 +11,40 @@ defmodule PropertyTable do
   @type table_id() :: atom()
 
   @typedoc """
-  Properties
+  A property
+
+  Properties can be anything, but in order to be useful, they need to be
+  compatible with the `PropertyTable.Matcher` implementation.
+
+  In is common for this to be a string list (`[String.t()]`) since the default
+  `PropertyTable.Matcher` works with those.
   """
   @type property() :: any()
+
+  @typedoc """
+  A match pattern
+
+  Just like properties, these can be anything but they have to be compatible
+  with the `PropertyTable.Matcher` implementation.
+
+  The default is that patterns are string lists with the addition of wildcards
+  like `:_`.
+  """
   @type pattern() :: any()
+
+  @typedoc """
+  A properties value
+
+  These can be whatever makes sense to the PropertyTable user. The only
+  constraint is that if you're using PropertyTable's persistence feature, it
+  needs to be possible to save and restore them. This means that pids and
+  references, for example, can't be used.
+  """
   @type value() :: any()
+
+  @typedoc """
+  A property/value tuple
+  """
   @type property_value() :: {property(), value()}
 
   @typedoc """
@@ -39,7 +68,7 @@ defmodule PropertyTable do
   know it and the process will be registered under than name so be sure it's
   unique.
 
-  Additional options are:
+  Options for properties and events:
 
   * `:properties` - a list of `{property, value}` tuples to initially populate
     the `PropertyTable`
@@ -49,10 +78,7 @@ defmodule PropertyTable do
     format. This is not recommended for new code and hopefully will be removed
     in the future.
 
-  Persistent options:
-
-  * You MUST set at least `:persist_data_path` for any of the other options to be respected!
-  * If the table can restore its data from disk, it will IGNORE your initial `:properties` value.
+  Options for persisting properties:
 
   * `:persist_data_path` - set to a directory where PropertyTable will
     persist the contents of the table to disk, snapshots will also be stored here.
@@ -61,6 +87,12 @@ defmodule PropertyTable do
   * `:persist_max_snapshots` - Maximum number of manual snapshots to keep on disk before they
     are replaced - (oldest snapshots are replaced first.) Defaults to 25.
   * `:persist_compression` - `0..9` range to compress the terms when written to disk, see `:erlang.term_to_binary/2`. Defaults to 6.
+
+  > #### Important {: .info}
+  >
+  > Setting `:persist_data_path` enables persistence. On initialization, if
+  > PropertyTable is able to load a snapshot, the data in the snapshot is used
+  > instead of the `:properties` option.
   """
   @spec start_link(options()) :: Supervisor.on_start()
   def start_link(options) do
@@ -239,30 +271,41 @@ defmodule PropertyTable do
   defdelegate delete_matches(table, pattern), to: Updater
 
   @doc """
+  Take a snapshot of the property table
+
   If persistence is enabled for this property table, save the current state
   and copy a snapshot of it into the `/snapshots` sub-directory of the set
   data directory.
+
+  This returns an ID for the snapshot that can be passed `restore_snapshot/2`.
   """
   @spec snapshot(table_id()) :: {:ok, String.t()} | :noop
   defdelegate snapshot(table), to: Updater
 
   @doc """
-  If persistence is enabled for this property table, save the current state
-  to disk immediately.
+  Write any changes to disk
+
+  If persistence is enabled for this property table, save the current state to
+  disk immediately. The table is already written every `:persist_interval`, but
+  this is avoid waiting after important changes.
   """
   @spec flush_to_disk(table_id()) :: :ok
   defdelegate flush_to_disk(table), to: Updater
 
   @doc """
-  Returns a list of available snapshot IDs and full name tuples for
-  a property table with persistence enable
+  Return available snapshot IDs
+
+  This scans the `snapshots` directory and returns a list of tuples containing
+  snapshot IDs and their full name.
   """
   @spec get_snapshots(table_id()) :: [{String.t(), String.t()}]
   defdelegate get_snapshots(table), to: Updater
 
   @doc """
-  If persistence is enabled for this property table, restore the current state of the
-  PropertyTable to that of a past named snapshot
+  Restart a previously saved snapshot
+
+  If persistence is enabled for this property table, restore the current state
+  of the PropertyTable to that of a past named snapshot
   """
   @spec restore_snapshot(table_id(), String.t()) :: :ok | :noop
   defdelegate restore_snapshot(table, snapshot_name), to: Updater
