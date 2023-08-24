@@ -18,10 +18,9 @@ defmodule PropertyTable.Persist do
   current `prop_table.db` file will be copied into the `snapshots/` directory with a timestamp added to the file name. `max_snapshots` in the options keyword list can be used
   to limit the number of snapshots saved in the `snapshots/` directory, if the limit is reached during a snapshot operation, the oldest snapshot will be deleted from disk.
   """
+  alias PropertyTable.PersistFile
 
   require Logger
-
-  alias PropertyTable.PersistFile
 
   # Options for persisting to disk, and their default values
   @persist_options %{
