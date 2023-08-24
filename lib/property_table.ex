@@ -255,7 +255,7 @@ defmodule PropertyTable do
   defdelegate flush_to_disk(table), to: Updater
 
   @doc """
-  Returns a list of availiable snapshot IDs and full name tuples for
+  Returns a list of available snapshot IDs and full name tuples for
   a property table with persistence enable
   """
   @spec get_snapshots(table_id()) :: [{String.t(), String.t()}]
