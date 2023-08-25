@@ -151,7 +151,7 @@ defmodule PropertyTable.Persist do
   rescue
     e ->
       Logger.error(
-        "Failed to copy snapshot in place, could not read or copy the snapshot file! - #{e}"
+        "Failed to copy snapshot in place, could not read or copy the snapshot file! - #{inspect(e)}"
       )
 
       {:error, :enoent}
