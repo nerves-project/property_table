@@ -142,10 +142,9 @@ defmodule PropertyTable.Updater do
   @doc """
   Save table to disk immediately (if persistence is configured)
   """
-  @spec flush_to_disk(PropertyTable.table_id()) :: :ok
+  @spec flush_to_disk(PropertyTable.table_id()) :: :ok | {:error, any()}
   def flush_to_disk(table) do
     GenServer.call(server_name(table), :persist)
-    :ok
   end
 
   @impl GenServer
@@ -298,13 +297,13 @@ defmodule PropertyTable.Updater do
 
   @impl GenServer
   def handle_call(:persist, _from, state) do
-    Persist.persist_to_disk(state.table, state.persistence_options)
-    {:reply, :ok, state}
+    result = Persist.persist_to_disk(state.table, state.persistence_options)
+    {:reply, result, state}
   end
 
   @impl GenServer
   def handle_info(:persist, state) do
-    Persist.persist_to_disk(state.table, state.persistence_options)
+    _ = Persist.persist_to_disk(state.table, state.persistence_options)
     {:noreply, state}
   end
 
