@@ -100,9 +100,7 @@ defmodule PropertyTable.PersistTest do
   end
 
   test "Calling the persistent/snapshot methods on a non-persistent table will simply noop",
-       %{
-         table_name: table
-       } do
+       %{table_name: table} do
     start_supervised!({PropertyTable, name: table})
     assert PropertyTable.snapshot(table) == :noop
     assert PropertyTable.restore_snapshot(table, "some_id") == :noop
