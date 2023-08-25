@@ -38,7 +38,7 @@ defmodule PropertyTable.Persist do
   @data_stable_name "data.ptable"
   @data_backup_name "data.ptable.backup"
 
-  @spec persist_to_disk(PropertyTable.table_id(), keyword()) :: :ok | :error
+  @spec persist_to_disk(PropertyTable.table_id(), keyword()) :: :ok | {:error, any()}
   def persist_to_disk(table, options) do
     options = take_options(options)
 
@@ -63,7 +63,7 @@ defmodule PropertyTable.Persist do
   rescue
     e ->
       Logger.error("Failed to persist table to disk: #{inspect(e)}")
-      :error
+      {:error, e}
   end
 
   @spec restore_from_disk(PropertyTable.table_id(), keyword()) :: :ok | {:error, atom()}
@@ -111,7 +111,7 @@ defmodule PropertyTable.Persist do
   @spec save_snapshot(PropertyTable.table_id(), keyword()) :: {:ok, String.t()} | :error
   def save_snapshot(table, options) do
     options = take_options(options)
-    persist_to_disk(table, options)
+    :ok = persist_to_disk(table, options)
 
     snapshot_id = :crypto.strong_rand_bytes(8) |> Base.encode16()
 

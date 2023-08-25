@@ -289,7 +289,7 @@ defmodule PropertyTable do
   disk immediately. The table is already written every `:persist_interval`, but
   this is avoid waiting after important changes.
   """
-  @spec flush_to_disk(table_id()) :: :ok
+  @spec flush_to_disk(table_id()) :: :ok | {:error, any()}
   defdelegate flush_to_disk(table), to: Updater
 
   @doc """

@@ -138,7 +138,7 @@ defmodule PropertyTable.PersistTest do
       {PropertyTable, name: table, persist_data_path: "/sys/class/this_will_never_work/"}
     )
 
-    log = capture_log(fn -> :ok = PropertyTable.flush_to_disk(table) end)
+    log = capture_log(fn -> {:error, _} = PropertyTable.flush_to_disk(table) end)
 
     # Flushing will succeed, but make sure an error is logged.
     assert log =~ "Failed to persist table"
