@@ -1,5 +1,6 @@
 defmodule PropertyTable.PersistTest do
   use ExUnit.Case
+  import ExUnit.CaptureLog
 
   @moduletag :capture_log
 
@@ -132,5 +133,16 @@ defmodule PropertyTable.PersistTest do
     start_supervised!({PropertyTable, name: table, persist_data_path: persist_path})
 
     assert PropertyTable.get(table, ["test"]) == :test_value
+  end
+
+  test "file system failures get logged", %{table_name: table} do
+    start_supervised!(
+      {PropertyTable, name: table, persist_data_path: "/sys/class/this_will_never_work/"}
+    )
+
+    log = capture_log(fn -> :ok = PropertyTable.flush_to_disk(table) end)
+
+    # Flushing will succeed, but make sure an error is logged.
+    assert log =~ "Failed to persist table"
   end
 end
