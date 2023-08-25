@@ -128,7 +128,7 @@ defmodule PropertyTable.Persist do
     {:ok, snapshot_id}
   rescue
     e ->
-      Logger.error("Failed to save snapshot to disk: #{e}")
+      Logger.error("Failed to save snapshot to disk: #{inspect(e)}")
       :error
   end
 
