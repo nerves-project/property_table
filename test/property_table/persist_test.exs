@@ -135,7 +135,7 @@ defmodule PropertyTable.PersistTest do
     assert PropertyTable.get(table, ["test"]) == :test_value
   end
 
-  test "file system failures get logged", %{table_name: table} do
+  test "flush failures get logged", %{table_name: table} do
     start_supervised!(
       {PropertyTable, name: table, persist_data_path: "/sys/class/this_will_never_work/"}
     )
@@ -144,5 +144,16 @@ defmodule PropertyTable.PersistTest do
 
     # Flushing will succeed, but make sure an error is logged.
     assert log =~ "Failed to persist table"
+  end
+
+  test "snapshot failures get logged", %{table_name: table} do
+    start_supervised!(
+      {PropertyTable, name: table, persist_data_path: "/sys/class/this_will_never_work/"}
+    )
+
+    log = capture_log(fn -> :error = PropertyTable.snapshot(table) end)
+
+    # Flushing will succeed, but make sure an error is logged.
+    assert log =~ "Failed to save snapshot"
   end
 end

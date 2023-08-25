@@ -265,8 +265,8 @@ defmodule PropertyTable.Updater do
     if state.persistence_options == nil do
       {:reply, :noop, state}
     else
-      {:ok, snapshot_id} = Persist.save_snapshot(state.table, state.persistence_options)
-      {:reply, {:ok, snapshot_id}, state}
+      result = Persist.save_snapshot(state.table, state.persistence_options)
+      {:reply, result, state}
     end
   end
 
