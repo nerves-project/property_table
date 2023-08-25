@@ -62,7 +62,7 @@ defmodule PropertyTable.Persist do
     :ok
   rescue
     e ->
-      Logger.error("Failed to persist table to disk: #{e}")
+      Logger.error("Failed to persist table to disk: #{inspect(e)}")
       :error
   end
 
@@ -104,7 +104,7 @@ defmodule PropertyTable.Persist do
     end
   rescue
     e ->
-      Logger.error("Failed to restore table from disk: #{e}")
+      Logger.error("Failed to restore table from disk: #{inspect(e)}")
       {:error, :failed_to_restore}
   end
 
