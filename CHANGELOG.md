@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.4
+
+* Updates
+  * Fix unintended exceptions being raised when the filesystem updates start
+    failing when table persistence is enabled
+  * Reduce time when an unexpected VM exit could result in a corrupt persisted
+    file. The backup would be usable, but now the critical steps only involve
+    renaming or deleting files.
+
 ## v0.2.3
 
 * Updates
