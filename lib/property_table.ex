@@ -52,7 +52,16 @@ defmodule PropertyTable do
 
   See `start_link/1` for usage.
   """
-  @type options() :: [name: table_id(), properties: [property_value()], tuple_events: boolean()]
+  @type options() :: [
+          name: table_id(),
+          properties: [property_value()],
+          tuple_events: boolean(),
+          matcher: module(),
+          persist_data_path: String.t(),
+          persist_interval: pos_integer(),
+          persist_max_snapshots: pos_integer(),
+          persist_compression: 0..9
+        ]
 
   @doc """
   Start a PropertyTable's supervision tree
