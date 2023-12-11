@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.5
+
+* Fix incorrect typespec for `PropertyTable.options()`
+
 ## v0.2.4
 
 * Updates
