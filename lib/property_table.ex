@@ -165,7 +165,18 @@ defmodule PropertyTable do
   end
 
   @doc """
-  Subscribe to receive events
+  Subscribe to receive property change events
+
+  Subscriptions may be for individual properties or contain wildcards as
+  allowed by the `PropertyTable.Matcher` that's in use. See
+  `PropertyTable.Matcher.StringPath` for the default.
+
+  > #### Important {: .warning}
+  >
+  > A common pattern is to subscribe to a property and then to get its initial
+  > value. The order matters. Subscription must be done first to prevent a race
+  > condition. For example, if you get a property's value and _then_ subscribe,
+  > it's possible for the value to change before the subscription takes effect.
   """
   @spec subscribe(table_id(), pattern()) :: :ok
   def subscribe(table, pattern) do
