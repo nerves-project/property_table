@@ -85,7 +85,9 @@ defmodule PropertyTable do
     matched for triggering events. See `PropertyTable.Matcher`.
   * `:tuple_events` - set to `true` for change events to be in the old tuple
     format. This is not recommended for new code and hopefully will be removed
-    in the future.
+    in the future. Prefer `:event_transformer`
+  * `:event_transformer` - set to a function that takes an `Event.t()` and returns
+    the event that should be sent to subscribers.
 
   Options for persisting properties:
 
@@ -123,6 +125,16 @@ defmodule PropertyTable do
       raise ArgumentError, "expected :tuple_events to be boolean, got: #{inspect(tuple_events)}"
     end
 
+    default_transformer =
+      if tuple_events, do: &PropertyTable.Event.to_tuple/1, else: &Function.identity/1
+
+    event_transformer = Keyword.get(options, :event_transformer, default_transformer)
+
+    if not is_function(event_transformer, 1) do
+      raise ArgumentError,
+            "expected :event_transformer to a function, got: #{inspect(event_transformer)}"
+    end
+
     matcher = Keyword.get(options, :matcher, PropertyTable.Matcher.StringPath)
 
     unless is_atom(matcher) do
@@ -143,7 +155,7 @@ defmodule PropertyTable do
       %{
         table: name,
         properties: properties,
-        tuple_events: tuple_events,
+        event_transformer: event_transformer,
         matcher: matcher,
         persistence_options: persistence_options
       },

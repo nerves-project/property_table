@@ -327,6 +327,19 @@ defmodule PropertyTableTest do
     assert_receive {^table, ^property, nil, 101, %{old_timestamp: _, new_timestamp: _}}
   end
 
+  test "custom event transformer", %{test: table} do
+    start_supervised!(
+      {PropertyTable, name: table, event_transformer: fn e -> "My event is #{e.value}" end}
+    )
+
+    property = ["test", "a", "b"]
+
+    PropertyTable.subscribe(table, [])
+    PropertyTable.put(table, property, "awesome")
+    assert_receive "My event is awesome"
+    refute_receive _
+  end
+
   test "rejects bad properties", %{test: table} do
     start_supervised!({PropertyTable, name: table})
 

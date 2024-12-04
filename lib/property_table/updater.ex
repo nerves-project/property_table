@@ -14,7 +14,7 @@ defmodule PropertyTable.Updater do
   @type state() :: %{
           table: PropertyTable.table_id(),
           registry: Registry.registry(),
-          tuple_events: boolean(),
+          event_transformer: (Event.t() -> any),
           matcher: module()
         }
 
@@ -322,7 +322,7 @@ defmodule PropertyTable.Updater do
   end
 
   defp dispatch(state, event) do
-    message = if state.tuple_events, do: Event.to_tuple(event), else: event
+    message = state.event_transformer.(event)
     matcher = state.matcher
     property = event.property
 

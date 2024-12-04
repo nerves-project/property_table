@@ -10,7 +10,7 @@ defmodule PropertyTable.Supervisor do
       matcher: options.matcher,
       registry: registry_name,
       table: options.table,
-      tuple_events: options.tuple_events,
+      event_transformer: options.event_transformer,
       persistence_options: options.persistence_options
     }
 
