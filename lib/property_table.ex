@@ -206,6 +206,18 @@ defmodule PropertyTable do
   end
 
   @doc """
+  Subscribe and get
+
+  This is a convenience method that combines subscription to a property and returning its
+  initial value.
+  """
+  @spec subscribe_and_get(table_id(), property(), value()) :: value()
+  def subscribe_and_get(table, property, default \\ nil) do
+    subscribe(table, property)
+    get(table, property, default)
+  end
+
+  @doc """
   Stop subscribing to a property
   """
   @spec unsubscribe(table_id(), pattern()) :: :ok
