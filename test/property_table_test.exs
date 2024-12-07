@@ -318,6 +318,35 @@ defmodule PropertyTableTest do
     assert timestamp == event_timestamp
   end
 
+  test "previous timestamps are between start time and event time", %{test: table} do
+    property = ["a", "b", "c"]
+
+    before_start_timestamp = System.monotonic_time()
+    start_supervised!({PropertyTable, name: table})
+
+    PropertyTable.subscribe(table, property)
+
+    PropertyTable.put(table, ["a", "b", "c"], 888)
+
+    assert_receive %Event{
+      table: ^table,
+      property: ["a", "b", "c"],
+      value: 888,
+      previous_value: nil,
+      timestamp: event_timestamp,
+      previous_timestamp: event_previous_timestamp
+    }
+
+    # Make sure we're getting integers
+    assert is_integer(event_timestamp)
+    assert is_integer(event_previous_timestamp)
+
+    # The previous timestamp needs to be before the event, but don't let it
+    # represent a time before starting up. We don't know the value then.
+    assert event_previous_timestamp < event_timestamp
+    assert before_start_timestamp < event_previous_timestamp
+  end
+
   test "sending the old tuple events", %{test: table} do
     start_supervised!({PropertyTable, name: table, tuple_events: true})
     property = ["test", "a", "b"]

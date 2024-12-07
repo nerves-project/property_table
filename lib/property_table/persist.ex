@@ -74,8 +74,9 @@ defmodule PropertyTable.Persist do
       {:error, e}
   end
 
-  @spec restore_from_disk(PropertyTable.table_id(), keyword()) :: :ok | {:error, atom()}
-  def restore_from_disk(table, options) do
+  @spec restore_from_disk(PropertyTable.table_id(), keyword(), integer()) ::
+          :ok | {:error, atom()}
+  def restore_from_disk(table, options, timestamp) do
     options = take_options(options)
 
     stable_path = data_file_path(options)
@@ -97,9 +98,6 @@ defmodule PropertyTable.Persist do
     case result do
       {:ok, data} ->
         ^table = :ets.new(table, [:named_table, :public])
-
-        # Insert the restored properties at the current timestamp
-        timestamp = System.monotonic_time()
 
         Enum.each(data, fn {property, value} ->
           :ets.insert(table, {property, value, timestamp})

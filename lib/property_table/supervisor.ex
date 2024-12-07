@@ -5,13 +5,15 @@ defmodule PropertyTable.Supervisor do
   @impl Supervisor
   def init(options) do
     registry_name = registry_name(options.table)
+    start_time = System.monotonic_time()
 
     table_options = %{
       matcher: options.matcher,
       registry: registry_name,
       table: options.table,
       event_transformer: options.event_transformer,
-      persistence_options: options.persistence_options
+      persistence_options: options.persistence_options,
+      start_time: start_time
     }
 
     # Try and restore from disk if persistence options are provided
@@ -20,10 +22,11 @@ defmodule PropertyTable.Supervisor do
       PropertyTable.Updater.maybe_restore_ets_table(
         options.table,
         options.properties,
-        options.persistence_options
+        options.persistence_options,
+        start_time
       )
     else
-      PropertyTable.Updater.create_ets_table(options.table, options.properties)
+      PropertyTable.Updater.create_ets_table(options.table, options.properties, start_time)
     end
 
     children = [

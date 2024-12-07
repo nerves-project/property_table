@@ -24,13 +24,12 @@ defmodule PropertyTable.Updater do
   This is done outside of the Updater GenServer so that the Updater GenServer can
   crash and recover without losing state.
   """
-  @spec create_ets_table(PropertyTable.table_id(), [PropertyTable.property_value()]) :: :ok
-  def create_ets_table(table, initial_properties) do
+  @spec create_ets_table(PropertyTable.table_id(), [PropertyTable.property_value()], integer()) ::
+          :ok
+  def create_ets_table(table, initial_properties, timestamp) do
     ^table = :ets.new(table, [:named_table, :public])
 
     # Insert the initial properties
-    timestamp = System.monotonic_time()
-
     Enum.each(initial_properties, fn {property, value} ->
       :ets.insert(table, {property, value, timestamp})
     end)
@@ -39,20 +38,21 @@ defmodule PropertyTable.Updater do
   @spec maybe_restore_ets_table(
           PropertyTable.table_id(),
           [PropertyTable.property_value()],
-          keyword()
+          keyword(),
+          integer()
         ) :: :ok
-  def maybe_restore_ets_table(table_name, initial_properties, persistence_options) do
+  def maybe_restore_ets_table(table_name, initial_properties, persistence_options, timestamp) do
     # if a table with this name already exists, delete it
     if :ets.info(table_name) != :undefined do
       :ets.delete(table_name)
     end
 
-    case Persist.restore_from_disk(table_name, persistence_options) do
+    case Persist.restore_from_disk(table_name, persistence_options, timestamp) do
       :ok ->
         :ok
 
       {:error, _error_reason} ->
-        create_ets_table(table_name, initial_properties)
+        create_ets_table(table_name, initial_properties, timestamp)
     end
   end
 
@@ -187,7 +187,7 @@ defmodule PropertyTable.Updater do
               value: value,
               previous_value: nil,
               timestamp: timestamp,
-              previous_timestamp: nil
+              previous_timestamp: state.start_time
             }
 
             dispatch(state, event)
@@ -277,7 +277,13 @@ defmodule PropertyTable.Updater do
       case Persist.restore_snapshot(state.persistence_options, snapshot_id) do
         :ok ->
           # With the snapshot file restore, reload the table from disk like usual
-          maybe_restore_ets_table(state.table, [], state.persistence_options)
+          maybe_restore_ets_table(
+            state.table,
+            [],
+            state.persistence_options,
+            System.monotonic_time()
+          )
+
           {:reply, :ok, state}
 
         {:error, _err} ->
@@ -383,7 +389,7 @@ defmodule PropertyTable.Updater do
                value: value,
                previous_value: nil,
                timestamp: timestamp,
-               previous_timestamp: nil
+               previous_timestamp: state.start_time
              }
              | events
            ]}
