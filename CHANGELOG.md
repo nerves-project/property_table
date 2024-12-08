@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.2.6
+
+* New feature
+  * Added `:event_transformer` option that takes a function to transform a
+    `PropertyTable.Event.t()` into a custom data structure for subscribers. This
+    lets users abstract away the use of `PropertyTable`.
+
+* Fixes
+  * The `:previous_timestamp` field in change events had been set to `nil` when
+    no information was known about the previous state of the property. It's now
+    set to the `PropertyTable`'s start time to fix the typespec violation (`nil`
+    wasn't valid) and help differentiate unknown properties due to app restarts
+    vs.  not being set.
+  * Properties set at initialization, including restored ones, all have the same
+    timestamp.
+
 ## v0.2.5
 
 * Fix incorrect typespec for `PropertyTable.options()`
