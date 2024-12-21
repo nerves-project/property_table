@@ -311,8 +311,19 @@ defmodule PropertyTable do
 
   This returns an ID for the snapshot that can be passed `restore_snapshot/2`.
   """
-  @spec snapshot(table_id()) :: {:ok, String.t()} | :noop
+  @spec snapshot(table_id()) :: {:ok, String.t()} | {:error, Exception.t()}
   defdelegate snapshot(table), to: Updater
+
+  @doc """
+  Same as `snapshot/1` but raises an exception on error
+  """
+  @spec snapshot!(table_id()) :: {:ok, String.t()}
+  def snapshot!(table) do
+    case snapshot(table) do
+      {:ok, id} -> {:ok, id}
+      {:error, error} -> raise error
+    end
+  end
 
   @doc """
   Write any changes to disk
@@ -321,8 +332,19 @@ defmodule PropertyTable do
   disk immediately. The table is already written every `:persist_interval`, but
   this is avoid waiting after important changes.
   """
-  @spec flush_to_disk(table_id()) :: :ok | {:error, any()}
+  @spec flush_to_disk(table_id()) :: :ok | {:error, Exception.t()}
   defdelegate flush_to_disk(table), to: Updater
+
+  @doc """
+  Same as `flush_to_disk/1` but raises an exception on error
+  """
+  @spec flush_to_disk!(table_id()) :: :ok
+  def flush_to_disk!(table) do
+    case flush_to_disk(table) do
+      :ok -> :ok
+      {:error, error} -> raise error
+    end
+  end
 
   @doc """
   Return available snapshot IDs
@@ -339,7 +361,7 @@ defmodule PropertyTable do
   If persistence is enabled for this property table, restore the current state
   of the PropertyTable to that of a past named snapshot
   """
-  @spec restore_snapshot(table_id(), String.t()) :: :ok | :noop
+  @spec restore_snapshot(table_id(), String.t()) :: :ok | {:error, Exception.t()}
   defdelegate restore_snapshot(table, snapshot_name), to: Updater
 
   defp maybe_get_persistence_options(options) do

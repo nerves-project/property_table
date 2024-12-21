@@ -43,8 +43,16 @@ defmodule PropertyTable.Persist do
   @data_tmp_extension ".tmp"
   @data_backup_extension ".backup"
 
-  @spec persist_to_disk(PropertyTable.table_id(), keyword()) :: :ok | {:error, any()}
+  @spec persist_to_disk(PropertyTable.table_id(), keyword()) :: :ok | {:error, Exception.t()}
   def persist_to_disk(table, options) do
+    persist_to_disk!(table, options)
+  rescue
+    e ->
+      Logger.error("Failed to persist table to disk: #{inspect(e)}")
+      {:error, e}
+  end
+
+  defp persist_to_disk!(table, options) do
     options = take_options(options)
 
     stable_path = data_file_path(options)
@@ -66,12 +74,6 @@ defmodule PropertyTable.Persist do
     end
 
     File.rename!(tmp_path, stable_path)
-
-    :ok
-  rescue
-    e ->
-      Logger.error("Failed to persist table to disk: #{inspect(e)}")
-      {:error, e}
   end
 
   @spec restore_from_disk(PropertyTable.table_id(), keyword(), integer()) ::
@@ -111,13 +113,14 @@ defmodule PropertyTable.Persist do
   rescue
     e ->
       Logger.error("Failed to restore table from disk: #{inspect(e)}")
-      {:error, :failed_to_restore}
+      {:error, e}
   end
 
-  @spec save_snapshot(PropertyTable.table_id(), keyword()) :: {:ok, String.t()} | :error
+  @spec save_snapshot(PropertyTable.table_id(), keyword()) ::
+          {:ok, String.t()} | {:error, Exception.t()}
   def save_snapshot(table, options) do
     options = take_options(options)
-    :ok = persist_to_disk(table, options)
+    persist_to_disk!(table, options)
 
     snapshot_id = :crypto.strong_rand_bytes(8) |> Base.encode16()
 
@@ -135,32 +138,24 @@ defmodule PropertyTable.Persist do
   rescue
     e ->
       Logger.error("Failed to save snapshot to disk: #{inspect(e)}")
-      :error
+      {:error, e}
   end
 
-  @spec restore_snapshot(keyword(), String.t()) :: :ok | {:error, atom()} | no_return()
+  @spec restore_snapshot(keyword(), String.t()) :: :ok | {:error, Exception.t()}
   def restore_snapshot(options, snapshot_id) do
     options = take_options(options)
     stable_path = data_file_path(options)
     snapshot_path = snapshot_path(options, snapshot_id)
 
-    case PersistFile.decode_file(snapshot_path) do
-      {:ok, _content} ->
-        Logger.debug("Restoring table file snapshot: #{snapshot_path} => #{stable_path}")
-        File.copy!(snapshot_path, stable_path)
-        :ok
-
-      {:error, err} ->
-        Logger.error("Failed to validate snapshot file! - #{err}")
-        {:error, err}
-    end
+    _content = PersistFile.decode_file!(snapshot_path)
+    Logger.debug("Restoring table file snapshot: #{snapshot_path} => #{stable_path}")
+    _ = File.copy!(snapshot_path, stable_path)
+    :ok
   rescue
     e ->
-      Logger.error(
-        "Failed to copy snapshot in place, could not read or copy the snapshot file! - #{inspect(e)}"
-      )
+      Logger.error("Failed to validate snapshot file! - #{inspect(e)}")
 
-      {:error, :enoent}
+      {:error, e}
   end
 
   @spec get_snapshot_list(keyword()) :: [{String.t(), tuple()}]
@@ -182,15 +177,13 @@ defmodule PropertyTable.Persist do
   defp try_restore_tabfile(tabfile_path) do
     Logger.debug("Attempting to load data from file: #{tabfile_path}")
 
-    case PersistFile.decode_file(tabfile_path) do
-      {:ok, data} ->
-        {:halt, {:ok, :erlang.binary_to_term(data)}}
-
-      {:error, err} ->
-        Logger.warning("Failed to load data from file #{tabfile_path} - #{inspect(err)}")
-        Logger.warning("Will try another backup file...")
-        {:cont, {:error, err}}
-    end
+    data = PersistFile.decode_file!(tabfile_path)
+    {:halt, {:ok, :erlang.binary_to_term(data)}}
+  rescue
+    e ->
+      Logger.warning("Failed to load data from file #{tabfile_path} - #{inspect(e)}")
+      Logger.warning("Will try another backup file...")
+      {:cont, {:error, e}}
   end
 
   defp take_options(options) when is_list(options) do

@@ -117,8 +117,10 @@ defmodule PropertyTable.Updater do
 
   @doc """
   Take a snapshot of the table and save to disk (if persistence is configured)
+
+  Returns the ID of the snapshot on success.
   """
-  @spec snapshot(PropertyTable.table_id()) :: {:ok, String.t()} | :noop
+  @spec snapshot(PropertyTable.table_id()) :: {:ok, String.t()} | {:error, Exception.t()}
   def snapshot(table) do
     GenServer.call(server_name(table), :snapshot)
   end
@@ -126,7 +128,7 @@ defmodule PropertyTable.Updater do
   @doc """
   Restore a snapshot by ID (if persistence is configured)
   """
-  @spec restore_snapshot(PropertyTable.table_id(), String.t()) :: :ok | :noop
+  @spec restore_snapshot(PropertyTable.table_id(), String.t()) :: :ok | {:error, Exception.t()}
   def restore_snapshot(table, snapshot_id) do
     GenServer.call(server_name(table), {:restore_snapshot, snapshot_id})
   end
@@ -262,7 +264,7 @@ defmodule PropertyTable.Updater do
   @impl GenServer
   def handle_call(:snapshot, _from, state) do
     if state.persistence_options == nil do
-      {:reply, :noop, state}
+      {:reply, {:error, %RuntimeError{message: "Persistence disabled"}}, state}
     else
       result = Persist.save_snapshot(state.table, state.persistence_options)
       {:reply, result, state}
@@ -272,7 +274,7 @@ defmodule PropertyTable.Updater do
   @impl GenServer
   def handle_call({:restore_snapshot, snapshot_id}, _from, state) do
     if state.persistence_options == nil do
-      {:reply, :noop, state}
+      {:reply, {:error, %RuntimeError{message: "Persistence disabled"}}, state}
     else
       case Persist.restore_snapshot(state.persistence_options, snapshot_id) do
         :ok ->
@@ -286,8 +288,8 @@ defmodule PropertyTable.Updater do
 
           {:reply, :ok, state}
 
-        {:error, _err} ->
-          {:reply, :noop, state}
+        error ->
+          {:reply, error, state}
       end
     end
   end

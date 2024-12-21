@@ -27,14 +27,11 @@ defmodule PropertyTable.PersistFile do
   # the internal format of how we store the table, we can use this to version the layouts
   @file_version 1
 
-  @spec decode_file(binary()) :: {:error, :bad_checksum | :bad_file} | {:ok, binary()}
-  def decode_file(file_path) when is_binary(file_path) do
-    file_content = File.read!(file_path)
-
-    case decode_binary(file_content) do
-      {:ok, decoded} -> validate_payload(decoded.payload, decoded.hash)
-      error -> error
-    end
+  @spec decode_file!(binary()) :: binary()
+  def decode_file!(file_path) when is_binary(file_path) do
+    File.read!(file_path)
+    |> decode_binary!()
+    |> validate_payload!()
   end
 
   @spec encode_binary(binary()) :: [binary(), ...]
@@ -57,27 +54,23 @@ defmodule PropertyTable.PersistFile do
     ]
   end
 
-  defp validate_payload(payload, hash) do
+  defp validate_payload!(%{payload: payload, hash: hash}) do
     check_hash = :crypto.hash(:md5, payload)
 
-    if hash != check_hash do
-      {:error, :bad_checksum}
-    else
-      {:ok, payload}
-    end
+    if hash != check_hash, do: raise(RuntimeError, "CRC mismatch")
+
+    payload
   end
 
-  defp decode_binary(
+  defp decode_binary!(
          <<@magic_file_header, version::8, _reserved::8, payload_len::64,
            table_content::binary-size(payload_len), payload_hash::binary>>
        ),
-       do:
-         {:ok,
-          %{
-            file_version: version,
-            payload: table_content,
-            hash: payload_hash
-          }}
+       do: %{
+         file_version: version,
+         payload: table_content,
+         hash: payload_hash
+       }
 
-  defp decode_binary(_), do: {:error, :bad_file}
+  defp decode_binary!(_), do: raise(RuntimeError, "Invalid persisted file format")
 end

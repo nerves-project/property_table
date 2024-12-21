@@ -99,11 +99,11 @@ defmodule PropertyTable.PersistTest do
     assert PropertyTable.get(table, ["property", "test", "a"]) == :original_value
   end
 
-  test "Calling the persistent/snapshot methods on a non-persistent table will simply noop",
+  test "Calling the persistent/snapshot methods on a non-persistent table returns errors",
        %{table_name: table} do
     start_supervised!({PropertyTable, name: table})
-    assert PropertyTable.snapshot(table) == :noop
-    assert PropertyTable.restore_snapshot(table, "some_id") == :noop
+    assert {:error, _} = PropertyTable.snapshot(table)
+    assert {:error, _} = PropertyTable.restore_snapshot(table, "some_id")
   end
 
   test "PropertyTable should restore a backup file if the stable file is corrupted" do
@@ -114,7 +114,7 @@ defmodule PropertyTable.PersistTest do
 
     # set initial property then snapshot
     PropertyTable.put(table, ["test"], :test_value)
-    PropertyTable.flush_to_disk(table)
+    PropertyTable.flush_to_disk!(table)
 
     Process.exit(pid, :normal)
 
@@ -144,14 +144,34 @@ defmodule PropertyTable.PersistTest do
     assert log =~ "Failed to persist table"
   end
 
+  test "PropertyTable.flush_to_disk!/1 raises on error", %{
+    table_name: table
+  } do
+    start_supervised!(
+      {PropertyTable, name: table, persist_data_path: "/sys/class/this_will_never_work/"}
+    )
+
+    assert_raise File.Error, fn -> PropertyTable.flush_to_disk!(table) end
+  end
+
   test "snapshot failures get logged", %{table_name: table} do
     start_supervised!(
       {PropertyTable, name: table, persist_data_path: "/sys/class/this_will_never_work/"}
     )
 
-    log = capture_log(fn -> :error = PropertyTable.snapshot(table) end)
+    log = capture_log(fn -> {:error, _} = PropertyTable.snapshot(table) end)
 
     # Flushing will succeed, but make sure an error is logged.
     assert log =~ "Failed to save snapshot"
+  end
+
+  test "PropertyTable.snapshot!/1 raises on error", %{
+    table_name: table
+  } do
+    start_supervised!(
+      {PropertyTable, name: table, persist_data_path: "/sys/class/this_will_never_work/"}
+    )
+
+    assert_raise File.Error, fn -> PropertyTable.snapshot!(table) end
   end
 end
