@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.3.0
+
+While this release introduces a breaking change, most of the API has been pretty
+stable for a long time. Consider this a 1.0.0 release candidate.
+
+* Breaking changes
+  * Persistence functions raise an exception rather than return `:noop` when
+    persistence has been disabled.
+  * Error tuples all return Exception structs rather than atoms. This cleans up
+    some error handling inconsistences, but will require changes to any code
+    that tries to interpret the error atoms.
+
+* New features
+  * Add raising versions (e.g., bang versions) of persistence functions
+
 ## v0.2.6
 
 * New feature
