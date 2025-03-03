@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2022 Frank Hunleth
+#
+# SPDX-License-Identifier: Apache-2.0
+#
 defmodule PropertyTable.Matcher.StringPath do
   @moduledoc """
   Match logic using keys organized as hierarchical lists

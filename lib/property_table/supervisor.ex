@@ -1,3 +1,9 @@
+# SPDX-FileCopyrightText: 2021 Jon Carstens
+# SPDX-FileCopyrightText: 2022 Digit
+# SPDX-FileCopyrightText: 2022 Frank Hunleth
+#
+# SPDX-License-Identifier: Apache-2.0
+#
 defmodule PropertyTable.Supervisor do
   @moduledoc false
   use Supervisor

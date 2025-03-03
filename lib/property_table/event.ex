@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2022 Frank Hunleth
+#
+# SPDX-License-Identifier: Apache-2.0
+#
 defmodule PropertyTable.Event do
   @moduledoc """
   Struct sent to subscribers on property changes

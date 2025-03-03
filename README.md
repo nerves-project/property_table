@@ -1,8 +1,10 @@
 # PropertyTable
 
-[![CircleCI](https://circleci.com/gh/nerves-project/property_table.svg?style=svg)](https://circleci.com/gh/nerves-project/property_table)
 [![Hex version](https://img.shields.io/hexpm/v/property_table.svg "Hex version")](https://hex.pm/packages/property_table)
+[![API docs](https://img.shields.io/hexpm/v/property_table.svg?label=hexdocs "API docs")](https://hexdocs.pm/property_table/PropertyTable.html)
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/nerves-project/property_table/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/nerves-project/property_table/tree/main)
 [![Coverage Status](https://coveralls.io/repos/github/nerves-project/property_table/badge.svg)](https://coveralls.io/github/nerves-project/property_table)
+[![REUSE status](https://api.reuse.software/badge/github.com/nerves-project/property_table)](https://api.reuse.software/info/github.com/nerves-project/property_table)
 
 <!-- MODULEDOC -->
 In-memory key-value store with subscriptions

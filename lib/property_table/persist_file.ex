@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2022 Digit
+# SPDX-FileCopyrightText: 2023 Frank Hunleth
+#
+# SPDX-License-Identifier: Apache-2.0
+#
 defmodule PropertyTable.PersistFile do
   @moduledoc false
   # This module contains methods to aid in writing the contents of a PropertyTable to a custom file format.

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2022 Frank Hunleth
+#
+# SPDX-License-Identifier: Apache-2.0
+#
 defmodule PropertyTable.Matcher do
   @moduledoc """
   Behaviour for customizing the Matcher logic for filtering and dispatching events

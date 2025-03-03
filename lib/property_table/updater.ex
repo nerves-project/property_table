@@ -1,3 +1,9 @@
+# SPDX-FileCopyrightText: 2021 Jon Carstens
+# SPDX-FileCopyrightText: 2022 Digit
+# SPDX-FileCopyrightText: 2022 Frank Hunleth
+#
+# SPDX-License-Identifier: Apache-2.0
+#
 defmodule PropertyTable.Updater do
   # GenServer that's responsible for updating the ETS table that stores all
   # properties. All writes to the table are routed through here.  Table reads
