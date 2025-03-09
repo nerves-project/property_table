@@ -61,7 +61,7 @@ defmodule PropertyTable.MixProject do
       files: [
         "CHANGELOG.md",
         "lib",
-        "LICENSES",
+        "LICENSES/*",
         "mix.exs",
         "NOTICE",
         "README.md",
@@ -71,7 +71,7 @@ defmodule PropertyTable.MixProject do
       links: %{
         "GitHub" => @source_url,
         "REUSE Compliance" =>
-          "https://api.reuse.software/info/github.com/nerves-project/nerves_runtime"
+          "https://api.reuse.software/info/github.com/nerves-project/property_table"
       }
     ]
   end
