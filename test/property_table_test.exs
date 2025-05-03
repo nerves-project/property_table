@@ -449,4 +449,18 @@ defmodule PropertyTableTest do
     PropertyTable.put_many(table, [{property1, 3}, {property2, 5}])
     refute_receive _
   end
+
+  test "put_many puts all with the same timestamp", %{test: table} do
+    start_supervised!({PropertyTable, name: table})
+    property1 = ["test", "a", "b"]
+    property2 = ["test", "a", "c"]
+    property3 = ["test", "a", "d"]
+
+    PropertyTable.put_many(table, [{property1, 1}, {property2, 2}, {property3, 3}])
+
+    [{_, _, ts1}, {_, _, ts2}, {_, _, ts3}] = PropertyTable.get_all_with_timestamps(table)
+
+    assert ts1 == ts2
+    assert ts1 == ts3
+  end
 end

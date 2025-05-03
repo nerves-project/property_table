@@ -234,7 +234,8 @@ defmodule PropertyTable do
   @doc """
   Fetch a property with the time that it was set
 
-  Timestamps come from `System.monotonic_time()`
+  Timestamps come from `System.monotonic_time()`. Use
+  `System.convert_time_unit/3` to convert from native time units.
   """
   @spec fetch_with_timestamp(table_id(), property()) :: {:ok, value(), integer()} | :error
   def fetch_with_timestamp(table, property) do
@@ -258,6 +259,18 @@ defmodule PropertyTable do
       [],
       table
     )
+  end
+
+  @doc """
+  Get all properties with timestamps
+
+  This function is similar to `get_all/1` but also returns the monotonic
+  time that the property was set. Use `System.convert_time_unit/3` to convert
+  from native time units.
+  """
+  @spec get_all_with_timestamps(table_id()) :: [{property(), value(), integer()}]
+  def get_all_with_timestamps(table) do
+    :ets.tab2list(table)
   end
 
   @doc """
