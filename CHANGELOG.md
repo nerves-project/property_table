@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.1
+
+* New features
+  * Add `PropertyTable.get_all_with_timestamps/0` to match a similar function
+    to get timestamps on individual properties.
+
 ## v0.3.0
 
 While this release introduces a breaking change, most of the API has been pretty
