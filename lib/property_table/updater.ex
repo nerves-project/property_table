@@ -218,7 +218,6 @@ defmodule PropertyTable.Updater do
     {:reply, result, state}
   end
 
-  @impl GenServer
   def handle_call({:delete, property, timestamp}, _from, state) do
     case :ets.take(state.table, property) do
       [{_property, previous_value, last_change}] ->
@@ -240,7 +239,6 @@ defmodule PropertyTable.Updater do
     {:reply, :ok, state}
   end
 
-  @impl GenServer
   def handle_call({:delete_matches, pattern, timestamp}, _from, state) do
     to_delete = match_with_timestamp(state.table, state.matcher, pattern)
 
@@ -267,7 +265,6 @@ defmodule PropertyTable.Updater do
     {:reply, :ok, state}
   end
 
-  @impl GenServer
   def handle_call(:snapshot, _from, state) do
     if state.persistence_options == nil do
       {:reply, {:error, %RuntimeError{message: "Persistence disabled"}}, state}
@@ -277,7 +274,6 @@ defmodule PropertyTable.Updater do
     end
   end
 
-  @impl GenServer
   def handle_call({:restore_snapshot, snapshot_id}, _from, state) do
     if state.persistence_options == nil do
       {:reply, {:error, %RuntimeError{message: "Persistence disabled"}}, state}
@@ -300,7 +296,6 @@ defmodule PropertyTable.Updater do
     end
   end
 
-  @impl GenServer
   def handle_call(:get_snapshots, _from, state) do
     if state.persistence_options == nil do
       {:reply, [], state}
@@ -309,7 +304,6 @@ defmodule PropertyTable.Updater do
     end
   end
 
-  @impl GenServer
   def handle_call(:persist, _from, state) do
     result = Persist.persist_to_disk(state.table, state.persistence_options)
     {:reply, result, state}
