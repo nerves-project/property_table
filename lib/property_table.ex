@@ -127,7 +127,7 @@ defmodule PropertyTable do
 
     tuple_events = Keyword.get(options, :tuple_events, false)
 
-    unless is_boolean(tuple_events) do
+    if not is_boolean(tuple_events) do
       raise ArgumentError, "expected :tuple_events to be boolean, got: #{inspect(tuple_events)}"
     end
 
@@ -143,13 +143,13 @@ defmodule PropertyTable do
 
     matcher = Keyword.get(options, :matcher, PropertyTable.Matcher.StringPath)
 
-    unless is_atom(matcher) do
+    if not is_atom(matcher) do
       raise ArgumentError, "expected :matcher to be module, got: #{inspect(matcher)}"
     end
 
     properties = Keyword.get(options, :properties, [])
 
-    unless Enum.all?(properties, fn {k, _} -> matcher.check_property(k) == :ok end) do
+    if !Enum.all?(properties, fn {k, _} -> matcher.check_property(k) == :ok end) do
       raise ArgumentError,
             "expected :properties to contain valid properties, got: #{inspect(properties)}"
     end

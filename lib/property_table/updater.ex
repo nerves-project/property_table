@@ -15,8 +15,6 @@ defmodule PropertyTable.Updater do
   alias PropertyTable.Event
   alias PropertyTable.Persist
 
-  require Logger
-
   @type state() :: %{
           table: PropertyTable.table_id(),
           registry: Registry.registry(),

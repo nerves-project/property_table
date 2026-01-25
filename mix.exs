@@ -16,18 +16,7 @@ defmodule PropertyTable.MixProject do
       package: package(),
       docs: docs(),
       dialyzer: dialyzer(),
-      test_coverage: [tool: ExCoveralls],
-      preferred_cli_env: %{
-        docs: :docs,
-        "hex.publish": :docs,
-        "hex.build": :docs,
-        credo: :test,
-        coveralls: :test,
-        "coveralls.detail": :test,
-        "coveralls.post": :test,
-        "coveralls.html": :test,
-        "coveralls.circle": :test
-      }
+      test_coverage: [tool: ExCoveralls]
     ]
   end
 
@@ -38,6 +27,22 @@ defmodule PropertyTable.MixProject do
   def application do
     [
       extra_applications: [:crypto, :logger]
+    ]
+  end
+
+  def cli do
+    [
+      preferred_envs: %{
+        docs: :docs,
+        "hex.publish": :docs,
+        "hex.build": :docs,
+        credo: :test,
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "coveralls.circle": :test
+      }
     ]
   end
 
