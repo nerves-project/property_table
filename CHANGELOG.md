@@ -5,6 +5,11 @@
 
 # Changelog
 
+## v0.3.2
+
+* Fixes
+  * Fix trivial Elixir warnings when compiled under Elixir 1.19 and 1.20
+
 ## v0.3.1
 
 * New features
