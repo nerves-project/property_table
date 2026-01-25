@@ -1,3 +1,7 @@
+<!--
+  SPDX-FileCopyrightText: 2022 Frank Hunleth
+  SPDX-License-Identifier: CC-BY-4.0
+-->
 # PropertyTable
 
 [![Hex version](https://img.shields.io/hexpm/v/property_table.svg "Hex version")](https://hex.pm/packages/property_table)

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: None
+# SPDX-License-Identifier: CC0-1.0
 defmodule PropertyTable.MixProject do
   use Mix.Project
 
