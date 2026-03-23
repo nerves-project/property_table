@@ -53,7 +53,11 @@ defmodule PropertyTable.Updater do
 
     case Persist.restore_from_disk(table_name, persistence_options, timestamp) do
       :ok ->
-        :ok
+        Enum.each(initial_properties, fn {property, value} ->
+          if :ets.lookup(table_name, property) == [] do
+            :ets.insert(table_name, {property, value, timestamp})
+          end
+        end)
 
       {:error, _error_reason} ->
         create_ets_table(table_name, initial_properties, timestamp)

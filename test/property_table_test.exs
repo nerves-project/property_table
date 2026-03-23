@@ -20,6 +20,44 @@ defmodule PropertyTableTest do
     assert PropertyTable.get(table, property2) == 2
   end
 
+  test "start with initial properties persisted", %{test: table} do
+    property1 = ["test", "a", "b"]
+    property2 = ["test", "c"]
+
+    data_path = System.tmp_dir!() |> Path.join("#{table}")
+    on_exit(fn -> File.rm_rf!(data_path) end)
+
+    start_supervised!(
+      {PropertyTable,
+       properties: [{property1, 1}, {property2, 2}], name: table, persist_data_path: data_path}
+    )
+
+    assert PropertyTable.get(table, property1) == 1
+    assert PropertyTable.get(table, property2) == 2
+
+    PropertyTable.put(table, property1, 10)
+    PropertyTable.put(table, property2, 20)
+
+    PropertyTable.flush_to_disk!(table)
+    stop_supervised!(table)
+
+    # Add a new property to initial_properties.
+    property3 = ["test", "d"]
+
+    start_supervised!(
+      {PropertyTable,
+       properties: [{property1, 1}, {property2, 2}, {property3, 3}],
+       name: table,
+       persist_data_path: data_path}
+    )
+
+    # Initial changed properties still changed
+    assert PropertyTable.get(table, property1) == 10
+    assert PropertyTable.get(table, property2) == 20
+    # New initial_property set
+    assert PropertyTable.get(table, property3) == 3
+  end
+
   test "clearing properties", %{test: table} do
     property1 = ["test", "a", "b"]
     property2 = ["test", "c"]
