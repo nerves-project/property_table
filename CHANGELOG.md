@@ -5,6 +5,12 @@
 
 # Changelog
 
+## v0.3.3
+
+* Fixes
+  * When restoring persistent properties, make sure that any missing properties
+    take on their initialized values if they have them. (@taun-fellowes)
+
 ## v0.3.2
 
 * Fixes
