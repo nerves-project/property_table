@@ -281,6 +281,19 @@ defmodule PropertyTable do
     registry = PropertyTable.Supervisor.registry_name(table)
     {:ok, matcher} = Registry.meta(registry, :matcher)
 
+    with true <- function_exported?(matcher, :match_spec, 1),
+         spec when is_list(spec) <- matcher.match_spec(pattern) do
+      match_via_spec(table, spec)
+    else
+      _ -> match_via_foldl(table, matcher, pattern)
+    end
+  end
+
+  defp match_via_spec(table, spec) do
+    for {property, value, _meta} <- :ets.select(table, spec), do: {property, value}
+  end
+
+  defp match_via_foldl(table, matcher, pattern) do
     :ets.foldl(
       fn {property, value, _timestamp}, acc ->
         if matcher.matches?(pattern, property) do

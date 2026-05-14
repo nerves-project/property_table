@@ -3,6 +3,25 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
+defmodule PropertyTableTest.NoMatchSpecMatcher do
+  @moduledoc false
+  # Matcher that intentionally omits the optional match_spec/1 callback so
+  # PropertyTable.match/2 falls back to the foldl path.
+
+  @behaviour PropertyTable.Matcher
+
+  alias PropertyTable.Matcher.StringPath
+
+  @impl PropertyTable.Matcher
+  defdelegate check_property(property), to: StringPath
+
+  @impl PropertyTable.Matcher
+  defdelegate check_pattern(pattern), to: StringPath
+
+  @impl PropertyTable.Matcher
+  defdelegate matches?(pattern, property), to: StringPath
+end
+
 defmodule PropertyTableTest do
   use ExUnit.Case, async: true
 
@@ -333,6 +352,35 @@ defmodule PropertyTableTest do
              {["a", "b", "C"], 4},
              {["a", "b", "c"], 1}
            ]
+  end
+
+  test "match falls back to foldl when matcher omits match_spec/1", %{test: table} do
+    # Sanity check: the custom matcher must really lack match_spec/1 so the
+    # `function_exported?` guard in PropertyTable.match/2 fails and the foldl
+    # path is exercised.
+    refute function_exported?(PropertyTableTest.NoMatchSpecMatcher, :match_spec, 1)
+
+    start_supervised!({PropertyTable, name: table, matcher: PropertyTableTest.NoMatchSpecMatcher})
+
+    PropertyTable.put(table, ["a", "b", "c"], 1)
+    PropertyTable.put(table, ["a", "b", "d"], 2)
+    PropertyTable.put(table, ["x", "y"], 3)
+
+    assert deterministic_match(table, []) == [
+             {["a", "b", "c"], 1},
+             {["a", "b", "d"], 2},
+             {["x", "y"], 3}
+           ]
+
+    assert deterministic_match(table, ["a"]) == [{["a", "b", "c"], 1}, {["a", "b", "d"], 2}]
+
+    assert deterministic_match(table, ["a", "b", :_]) == [
+             {["a", "b", "c"], 1},
+             {["a", "b", "d"], 2}
+           ]
+
+    assert PropertyTable.match(table, ["x", "y", :"$"]) == [{["x", "y"], 3}]
+    assert PropertyTable.match(table, ["nope"]) == []
   end
 
   test "timestamp of old and new values are provided", %{test: table} do

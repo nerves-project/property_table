@@ -78,4 +78,25 @@ defmodule PropertyTable.Matcher.StringPath do
   def matches?([], _property), do: true
   def matches?([:"$"], []), do: true
   def matches?(_pattern, _property), do: false
+
+  @doc """
+  Build an ETS match-spec equivalent to `matches?/2` for `pattern`
+
+  StringPath patterns translate directly into list patterns in the match-spec
+  head: `:_` is already an ETS wildcard, and the tail is left open with `:_`
+  unless the pattern ends in `:"$"`, in which case it is `[]` to anchor the
+  length. The body returns the whole row via `:"$_"`, so PropertyTable does
+  not need to know the row layout. Returns `:error` for invalid patterns.
+  """
+  @impl PropertyTable.Matcher
+  def match_spec(pattern) do
+    case check_pattern(pattern) do
+      :ok -> [{{property_pattern(pattern), :_, :_}, [], [:"$_"]}]
+      {:error, _} -> :error
+    end
+  end
+
+  defp property_pattern([]), do: :_
+  defp property_pattern([:"$"]), do: []
+  defp property_pattern([seg | rest]), do: [seg | property_pattern(rest)]
 end
