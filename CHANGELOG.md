@@ -5,6 +5,14 @@
 
 # Changelog
 
+## v0.3.4
+
+* New features
+  * Add optional `Matcher.match_spec/1` callback to support returning an ETS
+    match-spec to speed up `PropertyTable.match/2`. This moves an O(n) search in
+    Elixir to ETS's optimized C implementation. The default string list support
+    uses it now.
+
 ## v0.3.3
 
 * Fixes
