@@ -8,20 +8,20 @@ defmodule PropertyTable.PersistTest do
   import ExUnit.CaptureLog
 
   @moduletag :capture_log
+  @moduletag :tmp_dir
 
   @corrupted_table_test_name CorruptTableTest
 
   setup do
     table_name = :crypto.strong_rand_bytes(8) |> Base.encode16()
-    path = System.tmp_dir!()
 
     # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
-    [table_name: String.to_atom(table_name), path: path]
+    [table_name: String.to_atom(table_name)]
   end
 
   test "PropertyTable.flush_to_disk/1 should save table to disk immediately", %{
     table_name: table,
-    path: persist_path
+    tmp_dir: persist_path
   } do
     start_supervised!({PropertyTable, name: table, persist_data_path: persist_path})
 
@@ -34,7 +34,7 @@ defmodule PropertyTable.PersistTest do
 
   test "PropertyTable.snapshot/1 should save a snapshot to disk", %{
     table_name: table,
-    path: persist_path
+    tmp_dir: persist_path
   } do
     start_supervised!({PropertyTable, name: table, persist_data_path: persist_path})
 
@@ -48,7 +48,7 @@ defmodule PropertyTable.PersistTest do
   test "PropertyTable.snapshot/1 should replace the oldest snapshot with a new one when limit is reached",
        %{
          table_name: table,
-         path: persist_path
+         tmp_dir: persist_path
        } do
     start_supervised!(
       {PropertyTable, name: table, persist_data_path: persist_path, persist_max_snapshots: 2}
@@ -69,7 +69,7 @@ defmodule PropertyTable.PersistTest do
   test "PropertyTable.get_snapshots/1 should return a list of all current snapshots on disk in order of oldest to newest",
        %{
          table_name: table,
-         path: persist_path
+         tmp_dir: persist_path
        } do
     start_supervised!(
       {PropertyTable, name: table, persist_data_path: persist_path, persist_max_snapshots: 5}
@@ -87,7 +87,7 @@ defmodule PropertyTable.PersistTest do
 
   test "PropertyTable.restore_snapshot/1 should return a table to a previous snapshot state", %{
     table_name: table,
-    path: persist_path
+    tmp_dir: persist_path
   } do
     start_supervised!(
       {PropertyTable, name: table, persist_data_path: persist_path, persist_max_snapshots: 5}
@@ -112,9 +112,10 @@ defmodule PropertyTable.PersistTest do
     assert {:error, _} = PropertyTable.restore_snapshot(table, "some_id")
   end
 
-  test "PropertyTable should restore a backup file if the stable file is corrupted" do
+  test "PropertyTable should restore a backup file if the stable file is corrupted", %{
+    tmp_dir: persist_path
+  } do
     table = @corrupted_table_test_name
-    persist_path = System.tmp_dir!()
 
     {:ok, pid} = PropertyTable.start_link(name: table, persist_data_path: persist_path)
 
