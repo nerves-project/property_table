@@ -15,6 +15,7 @@ defmodule PropertyTable.PersistTest do
     table_name = :crypto.strong_rand_bytes(8) |> Base.encode16()
     path = System.tmp_dir!()
 
+    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
     [table_name: String.to_atom(table_name), path: path]
   end
 
